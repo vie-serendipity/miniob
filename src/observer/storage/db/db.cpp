@@ -87,7 +87,7 @@ RC Db::create_table(const char *table_name, int attribute_count, const AttrInfoS
 
   // 文件路径可以移到Table模块
   std::string table_file_path = table_meta_file(path_.c_str(), table_name);
-  Table *table = new Table();
+  Table      *table           = new Table();
   rc = table->create(next_table_id_++, table_file_path.c_str(), table_name, path_.c_str(), attribute_count, attributes);
   if (rc != RC::SUCCESS) {
     LOG_ERROR("Failed to create table %s.", table_name);
@@ -97,6 +97,22 @@ RC Db::create_table(const char *table_name, int attribute_count, const AttrInfoS
 
   opened_tables_[table_name] = table;
   LOG_INFO("Create table success. table name=%s", table_name);
+  return RC::SUCCESS;
+}
+
+RC Db::drop_table(const char *table_name)
+{
+  auto it = opened_tables_.find(table_name);
+  if (it == opened_tables_.end()) {
+    return RC::SCHEMA_TABLE_NOT_EXIST;  // 找不到表，要返回错误，测试程序中也会校验这种场景
+  }
+  Table *table = it->second;
+  RC     rc    = table->destroy(path_.c_str());  // 让表自己销毁资源
+  if (rc != RC::SUCCESS)
+    return rc;
+
+  opened_tables_.erase(it);  // 删除成功的话，从表list中将它删除
+  delete table;
   return RC::SUCCESS;
 }
 
@@ -122,7 +138,7 @@ Table *Db::find_table(int32_t table_id) const
 RC Db::open_all_tables()
 {
   std::vector<std::string> table_meta_files;
-  int ret = common::list_file(path_.c_str(), TABLE_META_FILE_PATTERN, table_meta_files);
+  int                      ret = common::list_file(path_.c_str(), TABLE_META_FILE_PATTERN, table_meta_files);
   if (ret < 0) {
     LOG_ERROR("Failed to list table meta files under %s.", path_.c_str());
     return RC::IOERR_READ;
@@ -131,7 +147,7 @@ RC Db::open_all_tables()
   RC rc = RC::SUCCESS;
   for (const std::string &filename : table_meta_files) {
     Table *table = new Table();
-    rc = table->open(filename.c_str(), path_.c_str());
+    rc           = table->open(filename.c_str(), path_.c_str());
     if (rc != RC::SUCCESS) {
       delete table;
       LOG_ERROR("Failed to open table. filename=%s", filename.c_str());
@@ -157,10 +173,7 @@ RC Db::open_all_tables()
   return rc;
 }
 
-const char *Db::name() const
-{
-  return name_.c_str();
-}
+const char *Db::name() const { return name_.c_str(); }
 
 void Db::all_tables(std::vector<std::string> &table_names) const
 {
@@ -174,7 +187,7 @@ RC Db::sync()
   RC rc = RC::SUCCESS;
   for (const auto &table_pair : opened_tables_) {
     Table *table = table_pair.second;
-    rc = table->sync();
+    rc           = table->sync();
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to flush table. table=%s.%s, rc=%d:%s", name_.c_str(), table->name(), rc, strrc(rc));
       return rc;
@@ -185,12 +198,6 @@ RC Db::sync()
   return rc;
 }
 
-RC Db::recover()
-{
-  return clog_manager_->recover(this);
-}
+RC Db::recover() { return clog_manager_->recover(this); }
 
-CLogManager *Db::clog_manager()
-{
-  return clog_manager_.get();
-}
+CLogManager *Db::clog_manager() { return clog_manager_.get(); }
