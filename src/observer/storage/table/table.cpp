@@ -481,6 +481,30 @@ RC Table::delete_record(const Record &record)
   return rc;
 }
 
+RC Table::update_record(Record &record, char *field_name, const Value &value)
+{
+  RC rc = RC::SUCCESS;
+  int record_size = table_meta_.record_size();
+  const int normal_field_start_index = table_meta_.sys_field_num();
+  char *record_data = (char *)malloc(record_size);
+  memcpy(record_data + field->offset(), record.data()+ field->offset(), copy_len);
+  for (int i = 0; i < table_meta_.field_num()-table_meta_.sys_field_num(); i++) {
+    const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
+    if strcasecmp(field.field_name(), field_name){
+      size_t copy_len = field->len();
+      if (field->type() == CHARS) {
+        const size_t data_len = value.length();
+        if (copy_len > data_len) {
+          copy_len = data_len + 1;
+        }
+      }
+      memcpy(record_data + field->offset(), value.data(), copy_len);
+      break;
+    }
+  }
+  return rc;
+}
+
 RC Table::insert_entry_of_indexes(const char *record, const RID &rid)
 {
   RC rc = RC::SUCCESS;
