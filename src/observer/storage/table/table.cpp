@@ -481,17 +481,20 @@ RC Table::delete_record(const Record &record)
   return rc;
 }
 
-RC Table::update_record(Record &record, char *field_name, const Value &value)
+RC Table::update_record(Record &record, const char *field_name, const Value &value)
 {
-  RC rc = RC::SUCCESS;
+  RC rc = sync();//刷新所有脏页
+  if(rc != RC::SUCCESS) return rc;
+
   int record_size = table_meta_.record_size();
   const int normal_field_start_index = table_meta_.sys_field_num();
-  char *record_data = (char *)malloc(record_size);
-  memcpy(record_data + field->offset(), record.data()+ field->offset(), copy_len);
+  char     *record_data              = record.data();
+  // memcpy(record_data, record.data(), record_size);
   for (int i = 0; i < table_meta_.field_num()-table_meta_.sys_field_num(); i++) {
     const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
-    if strcasecmp(field.field_name(), field_name){
+    if (strcasecmp(field->name(), field_name) ==0) {
       size_t copy_len = field->len();
+      memset(record_data + field->offset(), 0, copy_len);
       if (field->type() == CHARS) {
         const size_t data_len = value.length();
         if (copy_len > data_len) {
@@ -502,6 +505,7 @@ RC Table::update_record(Record &record, char *field_name, const Value &value)
       break;
     }
   }
+  // record.set_data(record_data, record.len());
   return rc;
 }
 

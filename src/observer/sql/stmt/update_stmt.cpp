@@ -8,18 +8,19 @@ EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT,
 MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
 See the Mulan PSL v2 for more details. */
 
-#include "sql/stmt/update_stmt.h"
 #include "common/log/log.h"
+#include "sql/stmt/update_stmt.h"
+#include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 
-UpdateStmt::UpdateStmt(Table *table, Value *values, int value_amount, FilterStmt *filter_stmt)
-    : table_(table), values_(values), value_amount_(value_amount)
+UpdateStmt::UpdateStmt(Table *table, const Value *values, int value_amount, FilterStmt *filter_stmt)
+    : table_(table), values_(values), value_amount_(value_amount), filter_stmt_(filter_stmt)
 {}
 
 UpdateStmt::~UpdateStmt()
 {
-  if (nullptr != filter_stmt_) {
+  if (nullptr != filter_stmt_) {\
     delete filter_stmt_;
     filter_stmt_ = nullptr;
   }
@@ -44,7 +45,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 
   std::vector<Field> update_fields;
   // check the fields type
-  const Value     *values        = update.value.data();
+  const Value     *values        = &update.value;
   const TableMeta &table_meta    = table->table_meta();
   const int        sys_field_num = table_meta.sys_field_num();
   const AttrType   value_type    = values[0].attr_type();
@@ -55,10 +56,10 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     if (field_name == update.attribute_name) {
       if (attr_type!=value_type){
         LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
-        table_name, field_meta->name(), field_type, value_type);
+        table_name, field_meta->name(), attr_type, value_type);
         return RC::SCHEMA_FIELD_TYPE_MISMATCH;
       }
-      update_fields.push_back(Field(update.relation_name, field_meta));
+      update_fields.push_back(Field(table, field_meta));
       break;
     }
   }
@@ -67,18 +68,14 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
 
   FilterStmt *filter_stmt = nullptr;
-  RC          rc          = FilterStmt::Create(db,
-      table,
-      &table_map,
-      update.conditions.data(),
-      static_cast<int>(update.conditions.size()),
-      filter_stmt);
+  RC rc = FilterStmt::create(
+      db, table, &table_map, update.conditions.data(), static_cast<int>(update.conditions.size()), filter_stmt);
   if (rc != RC::SUCCESS) {
-    LOF_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
+    LOG_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
   }
 
   UpdateStmt *update_stmt = new UpdateStmt(table, values, 1, filter_stmt);
   update_stmt->update_fields_.swap(update_fields);
   stmt = update_stmt;
-  return RC::INTERNAL;
+  return rc;
 }

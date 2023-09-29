@@ -23,7 +23,7 @@ class UpdateStmt;
 class UpdatePhysicalOperator : public PhysicalOperator
 {
 public:
-  UpdatePhysicalOperator(Table *table, std::vector<Value> values, std::vector<Field> fields) : table_(table), values_(values), fields_(fields) 
+  UpdatePhysicalOperator(Table *table, std::vector<Value> &&values, std::vector<Field> fields) : table_(table), values_(values), fields_(fields) 
   {}
 
   virtual ~UpdatePhysicalOperator() = default;

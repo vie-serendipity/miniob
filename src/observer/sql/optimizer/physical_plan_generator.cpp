@@ -68,6 +68,10 @@ RC PhysicalPlanGenerator::create(LogicalOperator &logical_operator, unique_ptr<P
       return create_plan(static_cast<DeleteLogicalOperator &>(logical_operator), oper);
     } break;
 
+    case LogicalOperatorType::UPDATE: {
+      return create_plan(static_cast<UpdateLogicalOperator &>(logical_operator), oper);
+    } break;
+
     case LogicalOperatorType::EXPLAIN: {
       return create_plan(static_cast<ExplainLogicalOperator &>(logical_operator), oper);
     } break;
@@ -255,7 +259,7 @@ RC PhysicalPlanGenerator::create_plan(UpdateLogicalOperator &update_oper, unique
     }
   }
   vector<Value> &values = update_oper.values();
-  vector<Field> &fields = update_oper.fields();
+  const vector<Field> &fields = update_oper.fields();
   oper = unique_ptr<PhysicalOperator>(new UpdatePhysicalOperator(update_oper.table(), std::move(values), std::move(fields)));
 
   if (child_physical_oper) {
