@@ -44,7 +44,8 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   }
 
   std::vector<Field> update_fields;
-  // check the fields type
+  // check the fields type and fields name
+  bool             flag          = false;
   const Value     *values        = &update.value;
   const TableMeta &table_meta    = table->table_meta();
   const int        sys_field_num = table_meta.sys_field_num();
@@ -54,6 +55,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     const std::string   field_name = field_meta->name();
     const AttrType      attr_type  = field_meta->type();
     if (field_name == update.attribute_name) {
+      flag = true;
       if (attr_type!=value_type){
         LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
         table_name, field_meta->name(), attr_type, value_type);
@@ -63,7 +65,10 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
       break;
     }
   }
-
+  if (flag == false) {
+    LOG_WARN("field name not found. table=%s, value name=%d", table_name, update.attribute_name);
+    return RC::INVALID_ARGUMENT;
+  }
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
 
