@@ -83,6 +83,7 @@ RC LogicalPlanGenerator::create_plan(
 
   const std::vector<Table *> &tables = select_stmt->tables();
   const std::vector<Field> &all_fields = select_stmt->query_fields();
+
   for (Table *table : tables) {
     std::vector<Field> fields;
     for (const Field &field : all_fields) {
@@ -99,6 +100,21 @@ RC LogicalPlanGenerator::create_plan(
       join_oper->add_child(std::move(table_oper));
       join_oper->add_child(std::move(table_get_oper));
       table_oper = unique_ptr<LogicalOperator>(join_oper);
+    }
+  }
+
+  for (FilterStmt *filter_stmt : select_stmt->join_filters()){
+    unique_ptr<LogicalOperator> predicate_oper;
+    RC rc = create_plan(filter_stmt, predicate_oper);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("failed to create predicate logical plan. rc=%s", strrc(rc));
+      return rc;
+    }
+    if (predicate_oper) {
+      if (table_oper) {
+        predicate_oper->add_child(std::move(table_oper));
+      }
+      table_oper = unique_ptr<LogicalOperator>(std::move(predicate_oper));
     }
   }
 

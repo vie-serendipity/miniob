@@ -84,6 +84,8 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         VALUES
         FROM
         WHERE
+        INNER
+        JOIN
         AND
         SET
         ON
@@ -102,6 +104,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %union {
   ParsedSqlNode *                   sql_node;
   ConditionSqlNode *                condition;
+  JoinSqlNode *                     join_sql;
   Value *                           value;
   enum CompOp                       comp;
   RelAttrSqlNode *                  rel_attr;
@@ -127,6 +130,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 /** type 定义了各种解析后的结果输出的是什么类型。类型对应了 union 中的定义的成员变量名称 **/
 %type <number>              type
 %type <condition>           condition
+%type <join_sql>            join_table
 %type <value>               value
 %type <number>              number
 %type <comp>                comp_op
@@ -415,7 +419,7 @@ update_stmt:      /*  update 语句的语法解析树*/
     }
     ;
 select_stmt:        /*  select 语句的语法解析树*/
-    SELECT select_attr FROM ID rel_list where
+    SELECT select_attr FROM ID rel_list join_table where
     {
       $$ = new ParsedSqlNode(SCF_SELECT);
       if ($2 != nullptr) {
@@ -429,9 +433,17 @@ select_stmt:        /*  select 语句的语法解析树*/
       $$->selection.relations.push_back($4);
       std::reverse($$->selection.relations.begin(), $$->selection.relations.end());
 
-      if ($6 != nullptr) {
-        $$->selection.conditions.swap(*$6);
+      if ($6 !=nullptr){
+        std::reverse($6->join_tables.begin(), $6->join_tables.end());
+        std::reverse($6->conditions.begin(), $6->conditions.end());
+        $$->selection.join_node.join_tables.swap($6->join_tables);
+        $$->selection.join_node.conditions.swap($6->conditions);
         delete $6;
+      }
+
+      if ($7 != nullptr) {
+        $$->selection.conditions.swap(*$7);
+        delete $7;
       }
       free($4);
     }
@@ -443,6 +455,25 @@ calc_stmt:
       std::reverse($2->begin(), $2->end());
       $$->calc.expressions.swap(*$2);
       delete $2;
+    }
+    ;
+
+join_table:
+    /* empty */
+    {
+      $$ = nullptr;
+    } 
+    | INNER JOIN ID ON condition_list join_table
+    {
+      if ($6 != nullptr) {
+        $$ = $6;
+      } else {
+        $$ = new JoinSqlNode();
+      }
+      $$->join_tables.emplace_back($3);
+      $$->conditions.emplace_back(*$5);
+      free($3);
+      delete $5;
     }
     ;
 

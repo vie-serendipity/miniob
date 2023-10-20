@@ -63,6 +63,24 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     table_map.insert(std::pair<std::string, Table *>(table_name, table));
   }
 
+  // collect tables in inner join
+  for (size_t i = 0; i < select_sql.join_node.join_tables.size(); i++) {
+    const char *table_name = select_sql.join_node.join_tables[i].c_str();
+    if (nullptr == table_name) {
+      LOG_WARN("invalid argument. relation name is null. index=%d", i);
+      return RC::INVALID_ARGUMENT;
+    }
+
+    Table *table = db->find_table(table_name);
+    if (nullptr == table) {
+      LOG_WARN("no such table. db=%s, table_name=%s", db->name(), table_name);
+      return RC::SCHEMA_TABLE_NOT_EXIST;
+    }
+
+    tables.push_back(table);
+    table_map.insert(std::pair<std::string, Table *>(table_name, table));
+  }
+
   // collect query fields in `select` statement
   std::vector<Field> query_fields;
   for (int i = static_cast<int>(select_sql.attributes.size()) - 1; i >= 0; i--) {
@@ -143,12 +161,29 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     return rc;
   }
 
+  std::vector<FilterStmt *> join_filters;
+  for (size_t i = 0; i < select_sql.join_node.conditions.size(); i++) {
+    FilterStmt *filter_stmt = nullptr;
+    RC rc = FilterStmt::create(db,
+        default_table,
+        &table_map,
+        select_sql.join_node.conditions[i].data(),
+        static_cast<int>(select_sql.join_node.conditions[i].size()),
+        filter_stmt);
+    if (rc != RC::SUCCESS) {
+      LOG_WARN("cannot construct filter stmt");
+      return rc;
+    }
+    join_filters.emplace_back(filter_stmt);
+  }
+
   // everything alright
   SelectStmt *select_stmt = new SelectStmt();
   // TODO add expression copy
   select_stmt->tables_.swap(tables);
   select_stmt->query_fields_.swap(query_fields);
   select_stmt->filter_stmt_ = filter_stmt;
+  select_stmt->join_filters_.swap(join_filters);
   stmt = select_stmt;
   return RC::SUCCESS;
 }
