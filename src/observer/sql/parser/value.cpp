@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <sstream>
 #include "sql/parser/value.h"
+#include "sql/parser/date.h"
 #include "storage/field/field.h"
 #include "common/log/log.h"
 #include "common/lang/comparator.h"
@@ -64,6 +65,7 @@ void Value::set_data(char *data, int length)
     case CHARS: {
       set_string(data, length);
     } break;
+    case DATES:
     case INTS: {
       num_value_.int_value_ = *(int *)data;
       length_ = length;
@@ -111,6 +113,13 @@ void Value::set_string(const char *s, int len /*= 0*/)
   }
   length_ = str_value_.length();
 }
+void Value::set_date(int val)
+{
+  attr_type_ = DATES;
+  num_value_.int_value_ = val;
+  length_ = sizeof(val);
+  str_value_.clear();
+}
 
 void Value::set_value(const Value &value)
 {
@@ -126,6 +135,9 @@ void Value::set_value(const Value &value)
     } break;
     case BOOLEANS: {
       set_boolean(value.get_boolean());
+    } break;
+    case DATES: {
+      set_date(value.get_int());
     } break;
     case UNDEFINED: {
       ASSERT(false, "got an invalid value type");
@@ -161,6 +173,9 @@ std::string Value::to_string() const
     case CHARS: {
       os << str_value_;
     } break;
+    case DATES: {
+      os << date_to_string(num_value_.int_value_);
+    } break;
     default: {
       LOG_WARN("unsupported attr type: %d", attr_type_);
     } break;
@@ -172,6 +187,7 @@ int Value::compare(const Value &other) const
 {
   if (this->attr_type_ == other.attr_type_) {
     switch (this->attr_type_) {
+      case DATES:
       case INTS: {
         return common::compare_int((void *)&this->num_value_.int_value_, (void *)&other.num_value_.int_value_);
       } break;
@@ -213,6 +229,7 @@ int Value::get_int() const
         return 0;
       }
     }
+    case DATES:
     case INTS: {
       return num_value_.int_value_;
     }
@@ -241,6 +258,7 @@ float Value::get_float() const
         return 0.0;
       }
     } break;
+    case DATES:
     case INTS: {
       return float(num_value_.int_value_);
     } break;
@@ -284,6 +302,7 @@ bool Value::get_boolean() const
         return !str_value_.empty();
       }
     } break;
+    case DATES:
     case INTS: {
       return num_value_.int_value_ != 0;
     } break;
