@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "common/log/log.h"
 #include "common/lang/string.h"
+#include "sql/parser/date.h"
 #include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
@@ -125,6 +126,27 @@ RC FilterStmt::create_filter_unit(Db *db, Table *default_table, std::unordered_m
   }
 
   filter_unit->set_comp(comp);
+
+  // DATE 类型的字面值是一个字符串，需要在这里对它进行解析和转换
+  auto left = filter_unit->left();
+  auto right = filter_unit->right();
+  if (left.is_attr && left.field.attr_type() == AttrType::DATES && !right.is_attr && right.value.attr_type() == AttrType::CHARS) {
+    int date = -1;
+    rc = string_to_date(right.value.data(), date);
+    right.value.set_date(date);
+    filter_unit->set_right(right);
+  } else if (!left.is_attr && left.value.attr_type() == AttrType::CHARS && right.is_attr && right.field.attr_type() == AttrType::DATES) {
+    int date = -1;
+    rc = string_to_date(left.value.data(), date);
+    left.value.set_date(date);
+    filter_unit->set_left(left);
+  }
+  if (rc != RC::SUCCESS) {
+    if (rc == RC::INVALID_ARGUMENT) {
+      LOG_WARN("Can not parse date in where clause. The format must be YYYY-MM-DD, and the date must be valid.");
+    }
+    return rc;
+  }
 
   // 检查两个类型是否能够比较
   return rc;
