@@ -23,6 +23,8 @@ std::string physical_operator_type_name(PhysicalOperatorType type)
       return "INDEX_SCAN";
     case PhysicalOperatorType::NESTED_LOOP_JOIN:
       return "NESTED_LOOP_JOIN";
+    case PhysicalOperatorType::UPDATE: 
+      return "UPDATE";
     case PhysicalOperatorType::EXPLAIN:
       return "EXPLAIN";
     case PhysicalOperatorType::PREDICATE:

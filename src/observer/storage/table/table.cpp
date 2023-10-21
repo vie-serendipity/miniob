@@ -241,6 +241,39 @@ RC Table::insert_record(Record &record)
   return rc;
 }
 
+RC Table::update_record(Record &record, const char *field_name, const Value &value)
+{
+  RC rc = sync();//刷新所有脏页
+  if(rc != RC::SUCCESS) return rc;
+
+
+  int record_size = table_meta_.record_size();
+  const int normal_field_start_index = table_meta_.sys_field_num();
+  char     *record_data              = record.data();
+  rc = delete_entry_of_indexes(record_data, record.rid(), false);
+  if (rc!=RC::SUCCESS){
+    LOG_ERROR("Failed to delete index data when update record. table name=%s, rc=%d:%s",
+                name(), rc, strrc(rc));
+  }
+  for (int i = 0; i < table_meta_.field_num()-table_meta_.sys_field_num(); i++) {
+    const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
+    if (strcasecmp(field->name(), field_name) ==0) {
+      size_t copy_len = field->len();
+      memset(record_data + field->offset(), 0, copy_len);
+      if (field->type() == CHARS) {
+        const size_t data_len = value.length();
+        if (copy_len > data_len) {
+          copy_len = data_len + 1;
+        }
+      }
+      memcpy(record_data + field->offset(), value.data(), copy_len);
+      break;
+    }
+  }
+  rc = insert_entry_of_indexes(record_data, record.rid());
+  return rc;
+}
+
 RC Table::visit_record(const RID &rid, bool readonly, std::function<void(Record &)> visitor)
 {
   return record_handler_->visit_record(rid, readonly, visitor);
