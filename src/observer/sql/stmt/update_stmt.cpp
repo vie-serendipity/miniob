@@ -34,9 +34,6 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
 {
   // TODO
   stmt = nullptr;
-  return RC::INTERNAL;
-}
-  stmt                   = nullptr;
   const char *table_name = update.relation_name.c_str();
   if (nullptr == db || nullptr == table_name) {
     LOG_WARN("invalid argument. db=%p, table_name=%p", db, table_name);
@@ -77,9 +74,6 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   }
 
   // check the conditions
-  for (auto conditionSqlNode : update.conditions){
-
-  }
 
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
