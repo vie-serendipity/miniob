@@ -46,10 +46,10 @@ public:
   RC init(const char *name, const char *dbpath);
 
   RC create_table(const char *table_name, int attribute_count, const AttrInfoSqlNode *attributes);
+  RC drop_table(const char *table_name);
 
   Table *find_table(const char *table_name) const;
   Table *find_table(int32_t table_id) const;
-
   const char *name() const;
 
   void all_tables(std::vector<std::string> &table_names) const;
