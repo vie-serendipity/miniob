@@ -60,4 +60,36 @@ int compare_string(void *arg1, int arg1_max_length, void *arg2, int arg2_max_len
   return 0;
 }
 
+int compare_float_with_string(void *arg1, void *arg2){
+  float       v1 = *(float *)arg1;
+  const char *s2 = (const char *)arg2;
+  std::string str2(s2);
+  bool        has_point = false;
+  std::string extracted_number;
+  for (char c : str2){
+    if(isdigit(c)){
+      extracted_number.push_back(c);
+    } else if (c=='.'&&!has_point){
+      extracted_number.push_back(c);
+      has_point = true;
+    } else{
+      break;
+    }
+  }
+  float v2;
+  if (extracted_number.size()>0){
+    v2 = std::stof(extracted_number);
+  }else{
+    v2 = 0;
+  }
+  float cmp = v1 - v2;
+  if (cmp > EPSILON) {
+    return 1;
+  }
+  if (cmp < -EPSILON) {
+    return -1;
+  }
+  return 0;
+}
+
 } // namespace common
