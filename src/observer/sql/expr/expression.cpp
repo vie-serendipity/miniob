@@ -128,7 +128,12 @@ RC ComparisonExpr::try_get_value(Value &cell) const
     const Value &right_cell = right_value_expr->get_value();
 
     bool value = false;
-    RC rc = compare_value(left_cell, right_cell, value);
+    RC rc = RC::SUCCESS;
+    if (left_cell.attr_type() == AttrType::NULLS || right_cell.attr_type() == AttrType::NULLS) {
+      cell.set_boolean(value);
+      return rc;
+    }
+    rc = compare_value(left_cell, right_cell, value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to compare tuple cells. rc=%s", strrc(rc));
     } else {
@@ -155,7 +160,10 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
     LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
     return rc;
   }
-
+  if (left_value.attr_type() == AttrType::NULLS || right_value.attr_type() == AttrType::NULLS) {
+    value.set_boolean(false);
+    return rc;
+  }
   bool bool_value = false;
   rc = compare_value(left_value, right_value, bool_value);
   if (rc == RC::SUCCESS) {

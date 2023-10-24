@@ -53,6 +53,9 @@ RC InsertStmt::create(Db *db, InsertSqlNode &inserts, Stmt *&stmt)
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
     const AttrType field_type = field_meta->type();
+    if (values[i].get_null()&&!field_meta->nullable()){
+      return RC::INVALID_ARGUMENT;
+    }
     // DATE 类型的字面值是一个字符串，需要在这里对它进行解析和转换
     if (field_type == AttrType::DATES && values[i].attr_type() == AttrType::CHARS) {
       int date = -1;

@@ -54,6 +54,11 @@ Value::Value(bool val)
   set_boolean(val);
 }
 
+Value::Value(bool val, bool flag)
+{
+  set_null(val);
+}
+
 Value::Value(const char *s, int len /*= 0*/)
 {
   set_string(s, len);
@@ -102,6 +107,12 @@ void Value::set_boolean(bool val)
   num_value_.bool_value_ = val;
   length_ = sizeof(val);
 }
+void Value::set_null(bool val)
+{
+  attr_type_ = NULLS;
+  null_flag_ = val;
+  length_ = sizeof(val);
+}
 void Value::set_string(const char *s, int len /*= 0*/)
 {
   attr_type_ = CHARS;
@@ -138,6 +149,9 @@ void Value::set_value(const Value &value)
     } break;
     case DATES: {
       set_date(value.get_int());
+    } break;
+    case NULLS: {
+      set_null(value.get_null());
     } break;
     case UNDEFINED: {
       ASSERT(false, "got an invalid value type");
@@ -223,6 +237,8 @@ int Value::compare(const Value &other) const
     return common::compare_float_with_string((void *)&this->num_value_.float_value_, (void *)other.str_value_.c_str());
   } else if (this->attr_type_ == CHARS && other.attr_type_ == FLOATS) {
     return -common::compare_float_with_string((void *)&other.num_value_.float_value_, (void *)this->str_value_.c_str());
+  } else if (this->attr_type_ == NULLS && other.attr_type_ == NULLS) {
+    return -2;
   }
   LOG_WARN("not supported");
   return -1;  // TODO return rc?
@@ -329,4 +345,7 @@ bool Value::get_boolean() const
     }
   }
   return false;
+}
+bool Value::get_null() const {
+  return null_flag_;
 }
