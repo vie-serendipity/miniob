@@ -70,8 +70,11 @@ public:
     const int leaf_max_size     = 200;
 
     const char *filename = btree_filename.c_str();
-
-    RC rc = handler_.create(filename, INTS, sizeof(int32_t) /*attr_len*/, internal_max_size, leaf_max_size);
+    std::vector<AttrType> attr_types;
+    attr_types.emplace_back(INTS);
+    std::vector<int> attr_lengths;
+    attr_lengths.emplace_back(sizeof(int32_t));
+    RC rc = handler_.create(filename, attr_types, attr_lengths /*attr_len*/, internal_max_size, leaf_max_size);
     if (rc != RC::SUCCESS) {
       throw runtime_error("failed to create btree handler");
     }
