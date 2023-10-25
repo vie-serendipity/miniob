@@ -410,13 +410,12 @@ value:
       @$ = @1;
     }
     |SSS {
-      if (strcmp($1,"null")==0) {
-        $$ = new Value(true, true);
-      } else {
-        char *tmp = common::substr($1,1,strlen($1)-2);
-        $$ = new Value(tmp);
-        free(tmp);
-      }
+      char *tmp = common::substr($1,1,strlen($1)-2);
+      $$ = new Value(tmp);
+      free(tmp);
+    }
+    | NULLABLE {
+      $$ = new Value(true, true);
     }
     ;
     

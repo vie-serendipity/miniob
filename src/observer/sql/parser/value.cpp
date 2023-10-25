@@ -217,6 +217,9 @@ int Value::compare(const Value &other) const
       case BOOLEANS: {
         return common::compare_int((void *)&this->num_value_.bool_value_, (void *)&other.num_value_.bool_value_);
       }
+      case NULLS: {
+        return 0;
+      }
       default: {
         LOG_WARN("unsupported type: %d", this->attr_type_);
       }
