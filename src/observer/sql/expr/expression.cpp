@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2022/07/05.
 //
 
+#include <regex>
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
 
@@ -109,6 +110,32 @@ RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &re
     } break;
     case GREAT_THAN: {
       result = (cmp_result > 0);
+    } break;
+    case STR_LIKE: {
+      // 目前只能先假设输入都是合法的，题目中并未给出语法规则
+      auto reg_str = "^" + right.to_string() + "$";
+      std::size_t pos = 0;
+      while((pos = reg_str.find("%")) != std::string::npos) {
+          reg_str.replace(pos, 1, "[^']*");
+      }
+      while((pos = reg_str.find("_")) != std::string::npos) {
+          reg_str.replace(pos, 1, "[^']");
+      }
+      std::regex reg(reg_str);
+      result = std::regex_search(left.to_string(), reg);
+    } break;
+    case STR_NOT_LIKE: {
+      // 目前只能先假设输入都是合法的，题目中并未给出语法规则
+      auto reg_str = "^" + right.to_string() + "$";
+      std::size_t pos = 0;
+      while((pos = reg_str.find("%")) != std::string::npos) {
+          reg_str.replace(pos, 1, "[^']*");
+      }
+      while((pos = reg_str.find("_")) != std::string::npos) {
+          reg_str.replace(pos, 1, "[^']");
+      }
+      std::regex reg(reg_str);
+      result = !std::regex_search(left.to_string(), reg);
     } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);

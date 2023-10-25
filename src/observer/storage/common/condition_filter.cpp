@@ -14,6 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #include <stddef.h>
 #include <math.h>
+#include <regex>
 #include "condition_filter.h"
 #include "storage/record/record_manager.h"
 #include "common/log/log.h"
@@ -156,6 +157,21 @@ bool DefaultConditionFilter::filter(const Record &rec) const
 
     default:
       break;
+  }
+
+  if (comp_op_ == CompOp::STR_LIKE || comp_op_ == CompOp::STR_NOT_LIKE) {
+    // 目前只能先假设输入都是合法的，题目中并未给出语法规则
+    auto reg_str = "^" + right_value.to_string() + "$";
+    std::size_t pos = 0;
+    while((pos = reg_str.find("%")) != std::string::npos) {
+        reg_str.replace(pos, 1, "[^']*");
+    }
+    while((pos = reg_str.find("_")) != std::string::npos) {
+        reg_str.replace(pos, 1, "[^']");
+    }
+    std::regex reg(reg_str);
+    bool res = std::regex_search(left_value.to_string(), reg);
+    return comp_op_ == CompOp::STR_LIKE ? res : !res;
   }
 
   LOG_PANIC("Never should print this.");
