@@ -35,10 +35,64 @@ RC ProjectPhysicalOperator::open(Trx *trx)
 
 RC ProjectPhysicalOperator::next()
 {
-  if (children_.empty()) {
-    return RC::RECORD_EOF;
+  if (aggregations_.empty()) {
+    if (children_.empty()) {
+      return RC::RECORD_EOF;
+    }
+    return children_[0]->next();
+  } else {
+    // aggregation
+    RC rc = RC::SUCCESS;
+    if (emitted_) {
+      rc = RC::RECORD_EOF;
+      return rc;
+    }
+    emitted_ = true;
+
+    while (RC::SUCCESS == children_[0]->next()) {
+      Tuple* tuple = children_[0]->current_tuple();
+      if (nullptr == tuple) {
+        rc = RC::INTERNAL;
+        LOG_WARN("failed to get tuple from operator");
+        break;
+      }
+
+      Value value, one(1);
+      
+      for (int i = 0; i < aggregations_.size(); i++) {
+        auto& agg = aggregations_[i];
+        if (agg.agg_fun == AggFun::AGG_COUNT) {
+          if (agg.attribute_name == "*" || agg.attribute_name == "1") {
+            rc = tuple->cell_at(0, value);
+          } else {
+            rc = tuple->find_cell(TupleCellSpec(agg.relation_name.c_str(), agg.attribute_name.c_str()), value);
+          }
+          if (rc != RC::SUCCESS) {
+            LOG_WARN("failed to find cell: %s", strrc(rc));
+            continue;
+          }
+          
+          if (tuple_.cell_type(i) == AttrType::UNDEFINED) {
+            tuple_.initialize(i, value.attr_type());
+          }
+          tuple_.add(i, one);
+        } else {
+          rc = tuple->find_cell(TupleCellSpec(agg.relation_name.c_str(), agg.attribute_name.c_str()), value);
+          if (rc != RC::SUCCESS) {
+            LOG_WARN("failed to find cell: %s", strrc(rc));
+            break;
+          }
+          if (tuple_.cell_type(i) == AttrType::UNDEFINED) {
+            tuple_.initialize(i, value.attr_type());
+          }
+          tuple_.add(i, value);
+        }
+      }
+    }
+    tuple_.finish();
+    return rc;
   }
-  return children_[0]->next();
+
 }
 
 RC ProjectPhysicalOperator::close()
@@ -48,10 +102,15 @@ RC ProjectPhysicalOperator::close()
   }
   return RC::SUCCESS;
 }
+
 Tuple *ProjectPhysicalOperator::current_tuple()
 {
-  tuple_.set_tuple(children_[0]->current_tuple());
-  return &tuple_;
+  if (aggregations_.empty()) {
+    project_tuple_.set_tuple(children_[0]->current_tuple());
+    return &project_tuple_;
+  } else {
+    return &tuple_;
+  }
 }
 
 void ProjectPhysicalOperator::add_projection(const Table *table, const FieldMeta *field_meta)
@@ -59,5 +118,5 @@ void ProjectPhysicalOperator::add_projection(const Table *table, const FieldMeta
   // 对单表来说，展示的(alias) 字段总是字段名称，
   // 对多表查询来说，展示的alias 需要带表名字
   TupleCellSpec *spec = new TupleCellSpec(table->name(), field_meta->name(), field_meta->name());
-  tuple_.add_cell_spec(spec);
+  project_tuple_.add_cell_spec(spec);
 }

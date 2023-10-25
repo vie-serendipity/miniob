@@ -16,3 +16,7 @@ See the Mulan PSL v2 for more details. */
 
 ProjectLogicalOperator::ProjectLogicalOperator(const std::vector<Field> &fields) : fields_(fields)
 {}
+
+ProjectLogicalOperator::ProjectLogicalOperator(const std::vector<Field> &fields, 
+                                               const std::vector<Aggregation> &aggregations) : fields_(fields), aggregations_(aggregations)
+{}

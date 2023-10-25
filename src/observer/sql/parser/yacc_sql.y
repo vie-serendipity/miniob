@@ -100,6 +100,11 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         LE
         GE
         NE
+        MAX
+        MIN
+        COUNT
+        AVG
+        SUM
 
 /** union 中定义各种数据类型，真实生成的代码也是union类型，所以不能有非POD类型的数据 **/
 %union {
@@ -108,6 +113,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   JoinSqlNode *                     join_sql;
   Value *                           value;
   enum CompOp                       comp;
+  enum AggFun                       agg;
   RelAttrSqlNode *                  rel_attr;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
@@ -135,7 +141,10 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <value>               value
 %type <number>              number
 %type <comp>                comp_op
+%type <agg>                 agg_fun
 %type <rel_attr>            rel_attr
+%type <relation_list>       agg_field_list
+%type <relation_list>       agg_attr
 %type <attr_infos>          attr_def_list
 %type <attr_info>           attr_def
 %type <value_list>          value_list
@@ -420,6 +429,15 @@ update_stmt:      /*  update 语句的语法解析树*/
       free($4);
     }
     ;
+
+agg_fun:
+      MAX { $$ = AGG_MAX; }
+    | MIN { $$ = AGG_MIN; }
+    | COUNT { $$ = AGG_COUNT; }
+    | AVG { $$ = AGG_AVG; }
+    | SUM { $$ = AGG_SUM; }
+    ;
+
 select_stmt:        /*  select 语句的语法解析树*/
     SELECT select_attr FROM ID rel_list join_table where
     {
@@ -541,6 +559,46 @@ select_attr:
     }
     ;
 
+agg_attr:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | ID agg_field_list {
+      if ($2 != nullptr) {
+        $$ = $2;
+      } else {
+        $$ = new std::vector<std::string>;
+      }
+      $$->push_back($1);
+      delete $1;
+    }
+    | '*' agg_field_list {
+      if ($2 != nullptr) {
+        $$ = $2;
+      } else {
+        $$ = new std::vector<std::string>;
+      }
+      $$->push_back("*");
+    }
+    ;
+
+agg_field_list:
+    /* empty */
+    {
+      $$ = nullptr;
+    }
+    | COMMA ID agg_field_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<std::string>;
+      }
+      $$->push_back($2);
+      free($2);
+    }
+    ;
+
 rel_attr:
     ID {
       $$ = new RelAttrSqlNode;
@@ -553,6 +611,14 @@ rel_attr:
       $$->attribute_name = $3;
       free($1);
       free($3);
+    }
+    | agg_fun LBRACE agg_attr RBRACE {
+      $$ = new RelAttrSqlNode;
+      if ($3 != nullptr) {
+        $$->agg_field.swap(*$3);
+        delete $3;
+      }
+      $$->agg_fun = $1;
     }
     ;
 

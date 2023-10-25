@@ -83,9 +83,86 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
 
   // collect query fields in `select` statement
   std::vector<Field> query_fields;
+  AggFun agg_fun = AggFun::NO_AGG;
+  std::string relation_name, attribute_name;
+  int agg_fun_num = 0;
+  std::vector<Aggregation> aggregations;
   for (int i = static_cast<int>(select_sql.attributes.size()) - 1; i >= 0; i--) {
     const RelAttrSqlNode &relation_attr = select_sql.attributes[i];
 
+    // aggregate function
+    if (relation_attr.agg_fun != AggFun::NO_AGG) {
+        Aggregation aggregation;
+        agg_fun = relation_attr.agg_fun;
+        aggregation.agg_fun = agg_fun;
+        agg_fun_num++;
+        if (relation_attr.agg_field.empty()) {
+          LOG_WARN("aggregate field is missing");
+          return RC::SCHEMA_FIELD_MISSING;
+        } else if (relation_attr.agg_field.size() > 1) {
+          LOG_WARN("only one aggregate field is allowed");
+          return RC::SCHEMA_FIELD_MISSING;
+        }
+        attribute_name = relation_attr.agg_field[0];
+        aggregation.attribute_name = attribute_name;
+        // count(*) or count(1)
+        if (0 == strcmp(attribute_name.c_str(), "*") ||
+            0 == strcmp(attribute_name.c_str(), "1")) {
+          if (relation_attr.agg_fun != AggFun::AGG_COUNT) {
+            LOG_WARN("only count(*) or count(1) is allowed");
+            return RC::SCHEMA_FIELD_MISSING;
+          }
+          Table* table = tables[0];
+          aggregation.relation_name = table->name();
+          query_fields.emplace_back(table, table->table_meta().field(0));
+          aggregations.push_back(aggregation);
+          continue;
+        }
+        // max/min/count/avg/sum(field)
+        if (!common::is_blank(relation_attr.relation_name.c_str())) {
+          const char *table_name = relation_attr.relation_name.c_str();
+          const char *field_name = attribute_name.c_str();
+
+          if (0 == strcmp(table_name, "*")) {
+            if (0 != strcmp(field_name, "*")) {
+              LOG_WARN("invalid field name while table is *. attr=%s", field_name);
+              return RC::SCHEMA_FIELD_MISSING;
+            }
+          } else {
+            auto iter = table_map.find(table_name);
+            if (iter == table_map.end()) {
+              LOG_WARN("no such table in from list: %s", table_name);
+              return RC::SCHEMA_FIELD_MISSING;
+            }
+            Table *table = iter->second;
+            const FieldMeta *field_meta = table->table_meta().field(field_name);
+            if (nullptr == field_meta) {
+              LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), field_name);
+              return RC::SCHEMA_FIELD_MISSING;
+            }
+            aggregation.relation_name = table->name();
+            aggregations.push_back(aggregation);
+            query_fields.emplace_back(table, field_meta);
+          }
+        } else {
+          if (tables.size() != 1) {
+            LOG_WARN("invalid. I do not know the attr's table. attr=%s", attribute_name.c_str());
+            return RC::SCHEMA_FIELD_MISSING;
+          }
+          Table *table = tables[0];
+          const FieldMeta *field_meta = table->table_meta().field(attribute_name.c_str());
+          if (nullptr == field_meta) {
+            LOG_WARN("no such field. field=%s.%s.%s", db->name(), table->name(), attribute_name.c_str());
+            return RC::SCHEMA_FIELD_MISSING;
+          }
+          aggregation.relation_name = table->name();
+          aggregations.push_back(aggregation);
+          query_fields.emplace_back(table, field_meta);
+        }
+        continue;
+    }
+
+    // normal field
     if (common::is_blank(relation_attr.relation_name.c_str()) &&
         0 == strcmp(relation_attr.attribute_name.c_str(), "*")) {
       for (Table *table : tables) {
@@ -141,6 +218,11 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
     }
   }
 
+  if (agg_fun != AggFun::NO_AGG && agg_fun_num != select_sql.attributes.size()) {
+    LOG_WARN("aggregate function and normal field cannot be mixed");
+    return RC::SCHEMA_FIELD_MISSING;
+  }
+
   LOG_INFO("got %d tables in from stmt and %d fields in query stmt", tables.size(), query_fields.size());
 
   Table *default_table = nullptr;
@@ -184,6 +266,9 @@ RC SelectStmt::create(Db *db, const SelectSqlNode &select_sql, Stmt *&stmt)
   select_stmt->query_fields_.swap(query_fields);
   select_stmt->filter_stmt_ = filter_stmt;
   select_stmt->join_filters_.swap(join_filters);
+  select_stmt->relation_name_ = relation_name;
+  select_stmt->attribute_name_ = attribute_name;
+  select_stmt->aggregations_.swap(aggregations);
   stmt = select_stmt;
   return RC::SUCCESS;
 }

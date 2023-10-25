@@ -15,6 +15,7 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include "sql/operator/physical_operator.h"
+#include "sql/parser/aggregation.h"
 
 /**
  * @brief 选择/投影物理算子
@@ -23,8 +24,7 @@ See the Mulan PSL v2 for more details. */
 class ProjectPhysicalOperator : public PhysicalOperator
 {
 public:
-  ProjectPhysicalOperator()
-  {}
+  ProjectPhysicalOperator(const std::vector<Aggregation> &aggregations) : aggregations_(aggregations), tuple_(aggregations) {}
 
   virtual ~ProjectPhysicalOperator() = default;
 
@@ -45,11 +45,16 @@ public:
 
   int cell_num() const
   {
-    return tuple_.cell_num();
+    return project_tuple_.cell_num();
   }
 
   Tuple *current_tuple() override;
 
 private:
-  ProjectTuple tuple_;
+  ProjectTuple project_tuple_;
+
+  // aggregation
+  AggTuple                                 tuple_;
+  std::vector<Aggregation>                 aggregations_;
+  bool                                     emitted_ = false;
 };
