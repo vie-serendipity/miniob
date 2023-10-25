@@ -20,6 +20,7 @@ See the Mulan PSL v2 for more details. */
 #include "common/rc.h"
 #include "sql/stmt/stmt.h"
 #include "storage/field/field.h"
+#include "sql/parser/aggregation.h"
 
 class FieldMeta;
 class FilterStmt;
@@ -61,10 +62,25 @@ public:
   {
     return join_filters_;
   }
+  const std::string &relation_name() const
+  {
+    return relation_name_;
+  }
+  const std::string &attribute_name() const
+  {
+    return attribute_name_;
+  }
+  const std::vector<Aggregation> &aggregations() const
+  {
+    return aggregations_;
+  }
 
 private:
   std::vector<Field> query_fields_;
   std::vector<Table *> tables_;
   FilterStmt *filter_stmt_ = nullptr;
   std::vector<FilterStmt *> join_filters_;
+  std::string relation_name_;
+  std::string attribute_name_;
+  std::vector<Aggregation> aggregations_;
 };
