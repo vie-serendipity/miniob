@@ -102,7 +102,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
         LE
         GE
         NE
-        IS
+        ISOP
         MAX
         MIN
         COUNT
@@ -764,8 +764,8 @@ comp_op:
     | LE { $$ = LESS_EQUAL; }
     | GE { $$ = GREAT_EQUAL; }
     | NE { $$ = NOT_EQUAL; }
-    | IS NOT { $$ = ISNOT; }
-    | IS { $$ = IS; }
+    | ISOP NOT { $$ = ISNOT; }
+    | ISOP { $$ = IS; }
     ;
 
 load_data_stmt:

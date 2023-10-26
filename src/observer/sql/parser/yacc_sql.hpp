@@ -102,7 +102,7 @@ extern int yydebug;
     LE = 303,                      /* LE  */
     GE = 304,                      /* GE  */
     NE = 305,                      /* NE  */
-    IS = 306,                      /* IS  */
+    ISOP = 306,                    /* ISOP  */
     MAX = 307,                     /* MAX  */
     MIN = 308,                     /* MIN  */
     COUNT = 309,                   /* COUNT  */

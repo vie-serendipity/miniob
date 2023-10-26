@@ -24,6 +24,7 @@ const static Json::StaticString FIELD_TYPE("type");
 const static Json::StaticString FIELD_OFFSET("offset");
 const static Json::StaticString FIELD_LEN("len");
 const static Json::StaticString FIELD_VISIBLE("visible");
+const static Json::StaticString FIELD_NULLABLE("nullable");
 
 FieldMeta::FieldMeta() : attr_type_(AttrType::UNDEFINED), attr_offset_(-1), attr_len_(0), visible_(false)
 {}
@@ -101,6 +102,7 @@ void FieldMeta::to_json(Json::Value &json_value) const
   json_value[FIELD_OFFSET] = attr_offset_;
   json_value[FIELD_LEN] = attr_len_;
   json_value[FIELD_VISIBLE] = visible_;
+  json_value[FIELD_NULLABLE] = nullable_;
 }
 
 RC FieldMeta::from_json(const Json::Value &json_value, FieldMeta &field)
@@ -115,6 +117,7 @@ RC FieldMeta::from_json(const Json::Value &json_value, FieldMeta &field)
   const Json::Value &offset_value = json_value[FIELD_OFFSET];
   const Json::Value &len_value = json_value[FIELD_LEN];
   const Json::Value &visible_value = json_value[FIELD_VISIBLE];
+  const Json::Value &nullable_value = json_value[FIELD_NULLABLE];
 
   if (!name_value.isString()) {
     LOG_ERROR("Field name is not a string. json value=%s", name_value.toStyledString().c_str());
@@ -135,6 +138,11 @@ RC FieldMeta::from_json(const Json::Value &json_value, FieldMeta &field)
   }
   if (!visible_value.isBool()) {
     LOG_ERROR("Visible field is not a bool value. json value=%s", visible_value.toStyledString().c_str());
+    return RC::INTERNAL;
+  }
+
+  if (!nullable_value.isBool()) {
+    LOG_ERROR("Nullable field is not a bool value. json value=%s", nullable_value.toStyledString().c_str());
     return RC::INTERNAL;
   }
 

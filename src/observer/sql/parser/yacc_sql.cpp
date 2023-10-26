@@ -190,7 +190,7 @@ enum yysymbol_kind_t
   YYSYMBOL_LE = 48,                        /* LE  */
   YYSYMBOL_GE = 49,                        /* GE  */
   YYSYMBOL_NE = 50,                        /* NE  */
-  YYSYMBOL_IS = 51,                        /* IS  */
+  YYSYMBOL_ISOP = 51,                      /* ISOP  */
   YYSYMBOL_MAX = 52,                       /* MAX  */
   YYSYMBOL_MIN = 53,                       /* MIN  */
   YYSYMBOL_COUNT = 54,                     /* COUNT  */
@@ -675,7 +675,7 @@ static const char *const yytname[] =
   "TRX_BEGIN", "TRX_COMMIT", "TRX_ROLLBACK", "INT_T", "STRING_T",
   "FLOAT_T", "DATE_T", "NOT", "NULLABLE", "HELP", "EXIT", "DOT", "INTO",
   "VALUES", "FROM", "WHERE", "INNER", "JOIN", "AND", "SET", "ON", "LOAD",
-  "DATA", "INFILE", "EXPLAIN", "EQ", "LT", "GT", "LE", "GE", "NE", "IS",
+  "DATA", "INFILE", "EXPLAIN", "EQ", "LT", "GT", "LE", "GE", "NE", "ISOP",
   "MAX", "MIN", "COUNT", "AVG", "SUM", "NUMBER", "FLOAT", "ID", "SSS",
   "'+'", "'-'", "'*'", "'/'", "UMINUS", "$accept", "commands",
   "command_wrapper", "exit_stmt", "help_stmt", "sync_stmt", "begin_stmt",
@@ -2571,15 +2571,15 @@ yyreduce:
 #line 2572 "yacc_sql.cpp"
     break;
 
-  case 102: /* comp_op: IS NOT  */
+  case 102: /* comp_op: ISOP NOT  */
 #line 767 "yacc_sql.y"
-             { (yyval.comp) = ISNOT; }
+               { (yyval.comp) = ISNOT; }
 #line 2578 "yacc_sql.cpp"
     break;
 
-  case 103: /* comp_op: IS  */
+  case 103: /* comp_op: ISOP  */
 #line 768 "yacc_sql.y"
-         { (yyval.comp) = IS; }
+           { (yyval.comp) = IS; }
 #line 2584 "yacc_sql.cpp"
     break;
 
