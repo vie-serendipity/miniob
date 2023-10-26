@@ -93,24 +93,24 @@ RC BplusTreeIndex::close()
 RC BplusTreeIndex::insert_entry(const char *record, const RID *rid)
 {
   int offset = 0;
-  char *res;
-  for (FieldMeta field_meta: fields_){
-    memcpy(res + offset, record + field_meta.offset(), field_meta.len());
+  std::string res;
+  for (FieldMeta field_meta: fields_) {
+    res.append(record + field_meta.offset(), field_meta.len());
     offset += field_meta.len();
   }
-  return index_handler_.insert_entry(res, rid);
+  return index_handler_.insert_entry(res.c_str(), rid);
 }
 
 // TODO: 根据偏移量将record对应的字段进行拼接
 RC BplusTreeIndex::delete_entry(const char *record, const RID *rid)
 {
   int offset = 0;
-  char *res;
+  std::string res;
   for (FieldMeta field_meta: fields_){
-    memcpy(res + offset, record + field_meta.offset(), field_meta.len());
+    res.append(record + field_meta.offset(), field_meta.len());
     offset += field_meta.len();
   }
-  return index_handler_.delete_entry(res, rid);
+  return index_handler_.delete_entry(res.c_str(), rid);
 }
 
 IndexScanner *BplusTreeIndex::create_scanner(
