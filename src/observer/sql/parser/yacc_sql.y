@@ -281,13 +281,15 @@ create_index_stmt:    /*create index 语句的语法解析树*/
       CreateIndexSqlNode &create_index = $$->create_index;
       create_index.index_name = $3;
       create_index.relation_name = $5;
-      create_index.attributes.swap(*$8);
+      if ($8 != nullptr){
+        create_index.attributes.swap(*$8);
+        delete $8;
+      }
       create_index.attributes.push_back($7);
       std::reverse(create_index.attributes.begin(), create_index.attributes.end());
       free($3);
       free($5);
       free($7);
-      delete $8;
     }
     ;
 
