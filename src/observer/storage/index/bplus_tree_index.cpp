@@ -92,11 +92,9 @@ RC BplusTreeIndex::close()
 // TODO: 根据偏移量将record对应的字段进行拼接
 RC BplusTreeIndex::insert_entry(const char *record, const RID *rid)
 {
-  int offset = 0;
   std::string res;
   for (FieldMeta field_meta: fields_) {
     res.append(record + field_meta.offset(), field_meta.len());
-    offset += field_meta.len();
   }
   return index_handler_.insert_entry(res.c_str(), rid);
 }
@@ -104,11 +102,9 @@ RC BplusTreeIndex::insert_entry(const char *record, const RID *rid)
 // TODO: 根据偏移量将record对应的字段进行拼接
 RC BplusTreeIndex::delete_entry(const char *record, const RID *rid)
 {
-  int offset = 0;
   std::string res;
   for (FieldMeta field_meta: fields_){
     res.append(record + field_meta.offset(), field_meta.len());
-    offset += field_meta.len();
   }
   return index_handler_.delete_entry(res.c_str(), rid);
 }

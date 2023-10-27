@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
+#include "sql/parser/date.h"
 
 UpdateStmt::UpdateStmt(Table *table, const Value *values, int value_amount, FilterStmt *filter_stmt)
     : table_(table), values_(values), value_amount_(value_amount), filter_stmt_(filter_stmt)
@@ -49,7 +50,8 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   std::vector<Field> update_fields;
   // check the fields type and fields name
   bool             flag          = false;
-  const Value     *values        = &update.value;
+  const Value     *update_values        = &update.value;
+  Value * values = const_cast<Value *>(update_values);
   const TableMeta &table_meta    = table->table_meta();
   const int        sys_field_num = table_meta.sys_field_num();
   const AttrType   value_type    = values[0].attr_type();
@@ -59,7 +61,19 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     const AttrType      attr_type  = field_meta->type();
     if (field_name == update.attribute_name) {
       flag = true;
-      if (attr_type!=value_type){
+      if (attr_type == AttrType::DATES && value_type == AttrType::CHARS) {
+        int date = -1;
+        RC rc = string_to_date(values[0].data(), date);
+        if (rc != RC::SUCCESS) {
+          if (rc == RC::INVALID_ARGUMENT) {
+            LOG_WARN("Can not parse date. The format must be YYYY-MM-DD, and the date must be valid. table=%s, field=%s, value=%s",
+              table_name, field_meta->name(), values[0].data());
+          }
+          return rc;
+        }
+        values[0].set_date(date);
+      }
+      if (attr_type!=values[0].attr_type()){
         LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
         table_name, field_meta->name(), attr_type, value_type);
         return RC::SCHEMA_FIELD_TYPE_MISMATCH;

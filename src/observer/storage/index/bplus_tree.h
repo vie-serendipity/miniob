@@ -97,12 +97,12 @@ private:
 class KeyComparator 
 {
 public:
-  void init(const std::vector<AttrType> &types, const std::vector<int> &lengths)
+  void init(std::vector<AttrType> types, std::vector<int> lengths)
   {
     for (int i = 0; i < types.size();i++){
-      AttrComparator attr_comparator;
+      AttrComparator attr_comparator = AttrComparator();
       attr_comparator.init(types[i], lengths[i]);
-      attr_comparators_.emplace_back(attr_comparator);
+      attr_comparators_.push_back(attr_comparator);
     }
   }
 
