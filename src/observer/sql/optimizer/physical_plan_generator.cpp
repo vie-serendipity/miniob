@@ -139,11 +139,11 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
     ASSERT(value_expr != nullptr, "got an index but value expr is null ?");
 
     const Value &value = value_expr->get_value();
-    IndexScanPhysicalOperator *index_scan_oper = new IndexScanPhysicalOperator(
-          table, index, table_get_oper.readonly(), 
-          &value, true /*left_inclusive*/, 
-          &value, true /*right_inclusive*/);
-          
+    auto *index_scan_oper = new IndexScanPhysicalOperator(
+        table, index, table_get_oper.readonly(),
+        &value, true /*left_inclusive*/,
+        &value, true /*right_inclusive*/);
+
     index_scan_oper->set_predicates(std::move(predicates));
     oper = unique_ptr<PhysicalOperator>(index_scan_oper);
     LOG_TRACE("use index scan");
@@ -153,6 +153,7 @@ RC PhysicalPlanGenerator::create_plan(TableGetLogicalOperator &table_get_oper, u
     oper = unique_ptr<PhysicalOperator>(table_scan_oper);
     LOG_TRACE("use table scan");
   }
+
 
   return RC::SUCCESS;
 }
@@ -196,7 +197,7 @@ RC PhysicalPlanGenerator::create_plan(ProjectLogicalOperator &project_oper, uniq
     }
   }
 
-  ProjectPhysicalOperator *project_operator = new ProjectPhysicalOperator;
+  auto *project_operator = new ProjectPhysicalOperator(project_oper.aggregations());
   const vector<Field> &project_fields = project_oper.fields();
   for (const Field &field : project_fields) {
     project_operator->add_projection(field.table(), field.meta());

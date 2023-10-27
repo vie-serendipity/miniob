@@ -1,0 +1,25 @@
+CREATE TABLE like_table(id int, name char(30));
+insert into like_table VALUES (0, 'mango');
+insert into like_table VALUES (1, 'peach');
+insert into like_table VALUES (2, 'apple');
+insert into like_table VALUES (3, 'orange');
+insert into like_table VALUES (4, 'cantaloupe');
+insert into like_table VALUES (5, 'cucumber');
+insert into like_table VALUES (6, 'cabbage');
+insert into like_table VALUES (7, 'watermelon');
+insert into like_table VALUES (8, 'carrot');
+insert into like_table VALUES (9, 'celery');
+insert into like_table VALUES (10, 'corn');
+insert into like_table VALUES (11, 'cinnamon');
+insert into like_table VALUES (12, 'cocoa');
+insert into like_table VALUES (13, 'cherry');
+insert into like_table VALUES (14, 'chocolate');
+insert into like_table VALUES (15, 'coconut');
+insert into like_table VALUES (16, 'cashew');
+insert into like_table VALUES (17, 'chestnut');
+insert into like_table VALUES (18, 'cranberry');
+insert into like_table VALUES (19, 'cactus');
+
+SELECT * FROM like_table WHERE name LIKE 'c%';
+
+SELECT * FROM like_table WHERE name NOT LIKE '%a%';

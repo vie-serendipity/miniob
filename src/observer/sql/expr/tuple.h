@@ -17,6 +17,7 @@ See the Mulan PSL v2 for more details. */
 #include <memory>
 #include <vector>
 #include <string>
+#include <limits>
 
 #include "common/log/log.h"
 #include "sql/expr/tuple_cell.h"
@@ -24,6 +25,7 @@ See the Mulan PSL v2 for more details. */
 #include "sql/parser/value.h"
 #include "sql/expr/expression.h"
 #include "storage/record/record.h"
+#include "sql/parser/aggregation.h"
 
 class Table;
 
@@ -330,6 +332,146 @@ public:
 
 private:
   const std::vector<std::unique_ptr<Expression>> &expressions_;
+};
+
+class AggTuple : public Tuple 
+{
+public:
+  explicit AggTuple(const std::vector<Aggregation> &aggregations)
+    : aggregations_(aggregations)
+  {
+    for (const Aggregation &agg : aggregations_) {
+      cells_.push_back(Value());
+    }
+  }
+
+  ~AggTuple() override = default;
+
+  void add_value(Value &val1, Value &val2) {
+    switch(val1.attr_type()) {
+      case AttrType::INTS:
+        val1.set_int(val1.get_int() + val2.get_int());
+        break;
+      case AttrType::FLOATS:
+        val1.set_float(val1.get_float() + val2.get_float());
+        break;
+      case AttrType::CHARS:
+        // Do nothing
+        break;
+      case AttrType::DATES:
+        // TODO
+        break;
+      default:
+        break;
+    }
+  }
+
+  void add(int index, Value &value) {
+    Value &cell_ = cells_[index];
+    switch (aggregations_[index].agg_fun) {
+      case AGG_MAX:
+        if (cell_.compare(value) < 0) {
+          cell_ = value;
+        }
+        break;
+      case AGG_MIN:
+        if (cell_.compare(value) > 0) {
+          cell_ = value;
+        }
+        break;
+      case AGG_COUNT:
+        add_value(cell_, value);
+        break;
+      case AGG_AVG:
+        add_value(cell_, value);
+        counter_.set_int(counter_.get_int() + 1);
+        break;
+      case AGG_SUM:
+        add_value(cell_, value);
+        break;
+      case NO_AGG: break;
+    }
+  }
+
+  void finish() {
+    for (int i = 0; i < cells_.size(); i++) {
+      Value &cell_ = cells_[i];
+      switch (aggregations_[i].agg_fun) {
+        case AGG_MAX:
+        case AGG_MIN:
+        case AGG_COUNT:
+        case AGG_SUM:
+          break;
+        case AGG_AVG:
+          if (cell_.attr_type() == AttrType::INTS) {
+            cell_.set_float((float)cell_.get_int() / (float)counter_.get_int());
+          } else if (cell_.attr_type() == AttrType::FLOATS) {
+            cell_.set_float(cell_.get_float() / (float)counter_.get_int());
+          }
+          break;
+        case NO_AGG: break;
+      }
+    }
+  }
+
+  int cell_num() const override
+  {
+    return aggregations_.size();
+  }
+
+  RC cell_at(int index, Value &cell) const override
+  {
+    if (index < 0 || index >= static_cast<int>(aggregations_.size())) {
+      return RC::INTERNAL;
+    }
+    cell = cells_[index];
+    return RC::SUCCESS;
+  }
+
+  RC find_cell(const TupleCellSpec &spec, Value &cell) const override
+  {
+    for (int i = 0; i < aggregations_.size(); i++) {
+      if (spec.alias() == aggregations_[i].attribute_name) {
+        return cell_at(i, cell);
+      }
+    }
+    return RC::SUCCESS;
+  }
+
+  AttrType cell_type(int index) const {
+    return cells_[index].attr_type();
+  }
+
+  void initialize(int index, AttrType attr) {
+    Value &cell_ = cells_[index];
+    cell_.set_type(AttrType::INTS);
+    AggFun agg_fun_ = aggregations_[index].agg_fun;
+
+    if (attr == AttrType::FLOATS) {
+      if (agg_fun_ == AggFun::AGG_MAX) {
+        cell_.set_float(std::numeric_limits<float>::lowest());
+      } else if (agg_fun_ == AggFun::AGG_MIN) {
+        cell_.set_float(std::numeric_limits<float>::max());
+      }
+    } else if (attr == AttrType::DATES) {
+      if (agg_fun_ == AggFun::AGG_MAX) {
+        cell_.set_date(std::numeric_limits<int>::lowest());
+      } else if (agg_fun_ == AggFun::AGG_MIN) {
+        cell_.set_date(std::numeric_limits<int>::max());
+      }
+    } else {
+      if (agg_fun_ == AggFun::AGG_MAX) {
+        cell_.set_int(std::numeric_limits<int>::lowest());
+      } else if (agg_fun_ == AggFun::AGG_MIN) {
+        cell_.set_int(std::numeric_limits<int>::max());
+      }
+    }
+  }
+
+private:
+  std::vector<Aggregation> aggregations_{};
+  std::vector<Value> cells_;
+  Value counter_{};
 };
 
 /**

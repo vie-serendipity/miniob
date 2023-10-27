@@ -20,6 +20,8 @@ See the Mulan PSL v2 for more details. */
 #include "sql/operator/logical_operator.h"
 #include "sql/expr/expression.h"
 #include "storage/field/field.h"
+#include "sql/parser/aggregation.h"
+#include "project_physical_operator.h"
 
 /**
  * @brief project 表示投影运算
@@ -30,6 +32,8 @@ class ProjectLogicalOperator : public LogicalOperator
 {
 public:
   ProjectLogicalOperator(const std::vector<Field> &fields);
+  ProjectLogicalOperator(const std::vector<Field> &fields,
+                         const std::vector<Aggregation> &aggregations);
   virtual ~ProjectLogicalOperator() = default;
 
   LogicalOperatorType type() const override
@@ -49,6 +53,10 @@ public:
   {
     return fields_;
   }
+  const std::vector<Aggregation> aggregations() const
+  {
+    return aggregations_;
+  }
 
 private:
   //! 投影映射的字段名称
@@ -56,4 +64,7 @@ private:
   //! 或者是执行某个函数。所以这里应该是表达式Expression。
   //! 不过现在简单处理，就使用字段来描述
   std::vector<Field> fields_;
+
+  // 聚合函数
+  std::vector<Aggregation> aggregations_;
 };

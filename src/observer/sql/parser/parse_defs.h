@@ -14,7 +14,7 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
-#include <stddef.h>
+#include <cstddef>
 #include <memory>
 #include <vector>
 #include <string>
@@ -28,6 +28,20 @@ class Expression;
  */
 
 /**
+ * @brief 描述聚合函数
+ * @ingroup SQLParser
+ */
+enum AggFun
+{
+  AGG_MAX,
+  AGG_MIN,
+  AGG_COUNT,
+  AGG_AVG,
+  AGG_SUM,
+  NO_AGG,
+};
+ 
+/**
  * @brief 描述一个属性
  * @ingroup SQLParser
  * @details 属性，或者说字段(column, field)
@@ -36,8 +50,10 @@ class Expression;
  */
 struct RelAttrSqlNode
 {
-  std::string relation_name;   ///< relation name (may be NULL) 表名
-  std::string attribute_name;  ///< attribute name              属性名
+  std::string relation_name;              ///< relation name (may be NULL) 表名
+  std::string attribute_name;             ///< attribute name              属性名
+  AggFun      agg_fun = AggFun::NO_AGG;   ///< aggregation function        聚合函数
+  std::vector<std::string> agg_field;     ///< aggregation field           聚合字段
 };
 
 /**
@@ -52,6 +68,8 @@ enum CompOp
   LESS_THAN,    ///< "<"
   GREAT_EQUAL,  ///< ">="
   GREAT_THAN,   ///< ">"
+  STR_LIKE,     ///< "LIKE"
+  STR_NOT_LIKE, ///< "NOT LIKE"
   NO_OP
 };
 
