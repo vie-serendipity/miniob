@@ -14,8 +14,10 @@ See the Mulan PSL v2 for more details. */
 
 #pragma once
 
+#include <string>
 #include <vector>
 
+#include "sql/parser/value.h"
 #include "storage/trx/trx.h"
 
 class CLogManager;
@@ -68,7 +70,7 @@ public:
 
   RC insert_record(Table *table, Record &record) override;
   RC delete_record(Table *table, Record &record) override;
-  RC update_record(Table * table, Record &record, const char *field_name, const Value &value) override;
+  RC update_record(Table *table, Record &record, const std::vector<std::string> &fields, const std::vector<Value> &values) override;
 
   /**
    * @brief 当访问到某条数据时，使用此函数来判断是否可见，或者是否有访问冲突

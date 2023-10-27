@@ -674,14 +674,16 @@ class TestSuite:
     with open(file1, 'r') as f1, open(file2, 'r') as f2:
       lines1 = f1.readlines()
       lines2 = f2.readlines()
-      if len(lines1) != len(lines2):
-        return False
 
       line_num = len(lines1)
       for i in range(line_num):
         if lines1[i].upper() != lines2[i].upper():
           _logger.info('file1=%s, file2=%s, line1=%s, line2=%s', file1, file2, lines1[i], lines2[i])
           return False
+      
+      if len(lines1) != len(lines2):
+        return False
+      
       return True
 
   def run_case(self, test_case, timeout=20) -> Result:

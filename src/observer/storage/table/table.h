@@ -15,6 +15,9 @@ See the Mulan PSL v2 for more details. */
 #pragma once
 
 #include <functional>
+#include <vector>
+
+#include "sql/parser/value.h"
 #include "storage/table/table_meta.h"
 
 struct RID;
@@ -77,7 +80,7 @@ public:
    */
   RC insert_record(Record &record);
   RC delete_record(const Record &record);
-  RC update_record(Record &record, const char *field_name, const Value &value);
+  RC update_record(Record &record, const std::vector<std::string> &fields, const std::vector<Value> &values);
   RC visit_record(const RID &rid, bool readonly, std::function<void(Record &)> visitor);
   RC get_record(const RID &rid, Record &record);
 
