@@ -165,11 +165,20 @@ const IndexMeta *TableMeta::index(const char *name) const
   return nullptr;
 }
 
-const IndexMeta *TableMeta::find_index_by_field(const char *field) const
+const IndexMeta *TableMeta::find_index_by_field(const std::vector<std::string> &fields) const
 {
   for (const IndexMeta &index : indexes_) {
-    if (0 == strcmp(index.field(), field)) {
-      return &index;
+    bool flag = true;
+    if (index.fields().size()==fields.size()){
+      for (int i = 0; i < fields.size();i++){
+        if (0 != strcmp(index.fields()[i].c_str(), fields[i].c_str())) {
+          flag = false;
+          break;
+        }
+      }
+      if (flag){
+        return &index;
+      }
     }
   }
   return nullptr;
@@ -268,7 +277,7 @@ int TableMeta::deserialize(std::istream &is)
     const Json::Value &field_value = fields_value[i];
     rc = FieldMeta::from_json(field_value, field);
     if (rc != RC::SUCCESS) {
-      LOG_ERROR("Failed to deserialize table meta. table name =%s", table_name.c_str());
+      LOG_ERROR("Failed to deserialize table meta(field meta). table name =%s", table_name.c_str());
       return -1;
     }
   }
@@ -295,7 +304,7 @@ int TableMeta::deserialize(std::istream &is)
       const Json::Value &index_value = indexes_value[i];
       rc = IndexMeta::from_json(*this, index_value, index);
       if (rc != RC::SUCCESS) {
-        LOG_ERROR("Failed to deserialize table meta. table name=%s", table_name.c_str());
+        LOG_ERROR("Failed to deserialize table meta(index meta). table name=%s", table_name.c_str());
         return -1;
       }
     }
