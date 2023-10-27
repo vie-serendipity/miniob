@@ -117,6 +117,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   enum CompOp                       comp;
   enum AggFun                       agg;
   RelAttrSqlNode *                  rel_attr;
+  SetValueSqlNode *                 set_value;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
   Expression *                      expression;
@@ -126,6 +127,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<std::string> *        relation_list;
   std::vector<std::string> *        field_list;
+  std::vector<SetValueSqlNode> *    set_list;
   char *                            string;
   int                               number;
   float                             floats;
@@ -146,6 +148,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <comp>                comp_op
 %type <agg>                 agg_fun
 %type <rel_attr>            rel_attr
+%type <set_value>           set_value
 %type <relation_list>       agg_field_list
 %type <relation_list>       agg_attr
 %type <attr_infos>          attr_def_list
@@ -157,6 +160,7 @@ ArithmeticExpr *create_arithmetic_expression(ArithmeticExpr::Type type,
 %type <field_list>          field_list
 %type <relation_list>       rel_list
 %type <rel_attr_list>       attr_list
+%type <set_list>            set_list
 %type <expression>          expression
 %type <expression_list>     expression_list
 %type <sql_node>            calc_stmt
@@ -440,18 +444,48 @@ delete_stmt:    /*  delete 语句的语法解析树*/
     }
     ;
 update_stmt:      /*  update 语句的语法解析树*/
-    UPDATE ID SET ID EQ value where 
+    UPDATE ID SET set_list where 
     {
       $$ = new ParsedSqlNode(SCF_UPDATE);
       $$->update.relation_name = $2;
-      $$->update.attribute_name = $4;
-      $$->update.value = *$6;
-      if ($7 != nullptr) {
-        $$->update.conditions.swap(*$7);
-        delete $7;
+      if ($4 != nullptr) {
+        $$->update.set_list.swap(*$4);
+        delete $4;
       }
+      if ($5 != nullptr) {
+        $$->update.conditions.swap(*$5);
+        delete $5;
+      }
+
       free($2);
-      free($4);
+    }
+    ;
+set_value:
+    ID EQ value {
+      $$ = new SetValueSqlNode;
+      $$->attribute_name = $1;
+      $$->value = *$3;
+
+      free($1);
+      delete $3;
+    }
+    ;
+set_list:
+    set_value {
+      $$ = new std::vector<SetValueSqlNode>;
+      $$->emplace_back(*$1);
+
+      delete $1;
+    }
+    | set_value COMMA set_list {
+      if ($3 != nullptr) {
+        $$ = $3;
+      } else {
+        $$ = new std::vector<SetValueSqlNode>;
+      }
+
+      $$->emplace_back(*$1);
+      delete $1;
     }
     ;
 
