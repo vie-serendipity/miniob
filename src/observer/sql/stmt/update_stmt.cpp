@@ -62,6 +62,9 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
     if (field_name == update.attribute_name) {
       flag = true;
       if (values[0].attr_type()==AttrType::NULLS){
+        if (!field_meta->nullable()){
+          return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+        }
         values[0].set_null(1 << i);
       }
       if (attr_type == AttrType::DATES && value_type == AttrType::CHARS) {
