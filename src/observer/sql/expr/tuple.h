@@ -481,7 +481,7 @@ public:
           break;
         case AGG_AVG:
           if (counter_.get_int()==0){
-            cell_.set_float(0);
+            cell_.set_null(0);
           }else{
             if (cell_.attr_type() == AttrType::INTS) {
               cell_.set_float((float)cell_.get_int() / (float)counter_.get_int());
