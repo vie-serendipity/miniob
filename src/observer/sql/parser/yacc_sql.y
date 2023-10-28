@@ -366,6 +366,24 @@ attr_def:
       $$->nullable = true;
       free($1);
     }
+    | ID type LBRACE number RBRACE NULLABLE
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = 4;
+      $$->nullable = true;
+      free($1);
+    }
+    | ID type LBRACE number RBRACE NOT NULLABLE
+    {
+      $$ = new AttrInfoSqlNode;
+      $$->type = (AttrType)$2;
+      $$->name = $1;
+      $$->length = 4;
+      $$->nullable = false;
+      free($1);
+    }
     | ID type
     {
       $$ = new AttrInfoSqlNode;
