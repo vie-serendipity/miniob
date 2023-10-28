@@ -211,7 +211,7 @@ public:
     int i = 0;
     for (auto meta: *field_metas){
       if (0 == strcmp(meta.name(), field_meta->name())){
-        num = i - 1;
+        num = i;
         return RC::SUCCESS;
       }
       i++;
@@ -459,7 +459,9 @@ public:
         break;
       case AGG_AVG:
         add_value(cell_, value);
-        counter_.set_int(counter_.get_int() + 1);
+        if (value.attr_type() != NULLS){
+          counter_.set_int(counter_.get_int() + 1);
+        }
         break;
       case AGG_SUM:
         add_value(cell_, value);
@@ -478,10 +480,14 @@ public:
         case AGG_SUM:
           break;
         case AGG_AVG:
-          if (cell_.attr_type() == AttrType::INTS) {
-            cell_.set_float((float)cell_.get_int() / (float)counter_.get_int());
-          } else if (cell_.attr_type() == AttrType::FLOATS) {
-            cell_.set_float(cell_.get_float() / (float)counter_.get_int());
+          if (counter_.get_int()==0){
+            cell_.set_float(0);
+          }else{
+            if (cell_.attr_type() == AttrType::INTS) {
+              cell_.set_float((float)cell_.get_int() / (float)counter_.get_int());
+            } else if (cell_.attr_type() == AttrType::FLOATS) {
+              cell_.set_float(cell_.get_float() / (float)counter_.get_int());
+            }
           }
           break;
         case NO_AGG: break;
