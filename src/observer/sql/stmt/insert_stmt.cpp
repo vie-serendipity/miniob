@@ -18,7 +18,7 @@ See the Mulan PSL v2 for more details. */
 #include "storage/table/table.h"
 #include "sql/parser/date.h"
 
-InsertStmt::InsertStmt(Table *table, const Value *values, int value_amount)
+InsertStmt::InsertStmt(Table *table, std::vector<Value> &values, int value_amount)
     : table_(table), values_(values), value_amount_(value_amount)
 {}
 
@@ -39,7 +39,7 @@ RC InsertStmt::create(Db *db, InsertSqlNode &inserts, Stmt *&stmt)
   }
 
   // check the fields number
-  const Value *values = inserts.values.data();
+  Value *values = inserts.values.data();
   const int value_num = static_cast<int>(inserts.values.size());
   const TableMeta &table_meta = table->table_meta();
   const int field_num = table_meta.field_num() - table_meta.sys_field_num();
@@ -50,14 +50,36 @@ RC InsertStmt::create(Db *db, InsertSqlNode &inserts, Stmt *&stmt)
 
   // check fields type
   const int sys_field_num = table_meta.sys_field_num();
+  int       null_flag     = 0;
+  int       length        = 0;
   for (int i = 0; i < value_num; i++) {
     const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
     const AttrType field_type = field_meta->type();
-    if (values[i].get_null()){
-      
-    }
-    if (values[i].get_null()&&!field_meta->nullable()){
-      return RC::INVALID_ARGUMENT;
+    length += field_meta->len();
+    if (values[i].attr_type() == AttrType::NULLS ){
+      if (!field_meta->nullable()){
+        return RC::INVALID_ARGUMENT;
+      }
+      switch (field_meta->type())
+      {
+      case AttrType::INTS:{
+        values[i].set_int(0);
+      } break;
+      case AttrType::FLOATS: {
+        values[i].set_float(0);
+      } break;
+      case AttrType::CHARS: {
+        char *data = (char *)malloc(sizeof(char));
+        values[i].set_data(data, 1);
+      } break;
+      case AttrType::DATES: {
+        values[i].set_date(0);
+      } break;
+      case AttrType::UNDEFINED: {
+        ASSERT(false, "got an invalid value type");
+      } break;
+      }
+      null_flag |= 1 << i;
     }
     // DATE 类型的字面值是一个字符串，需要在这里对它进行解析和转换
     if (field_type == AttrType::DATES && values[i].attr_type() == AttrType::CHARS) {
@@ -79,8 +101,14 @@ RC InsertStmt::create(Db *db, InsertSqlNode &inserts, Stmt *&stmt)
       return RC::SCHEMA_FIELD_TYPE_MISMATCH;
     }
   }
-
+  std::vector<Value> res;
+  Value null_field;
+  null_field.set_null(null_flag);
+  res.emplace_back(null_field);
+  for (int i = 0; i < value_num; i++) {
+    res.emplace_back(values[i]);
+  }
   // everything alright
-  stmt = new InsertStmt(table, values, value_num);
+  stmt = new InsertStmt(table, res, value_num + 1);
   return RC::SUCCESS;
 }

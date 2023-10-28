@@ -41,7 +41,7 @@ RC TableScanPhysicalOperator::next()
     if (rc != RC::SUCCESS) {
       return rc;
     }
-
+    
     tuple_.set_record(&current_record_);
     rc = filter(tuple_, filter_result);
     if (rc != RC::SUCCESS) {

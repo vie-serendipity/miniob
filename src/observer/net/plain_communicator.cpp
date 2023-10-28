@@ -253,7 +253,6 @@ RC PlainCommunicator::write_result_internal(SessionEvent *event, bool &need_disc
         sql_result->close();
         return rc;
       }
-
       std::string cell_str = value.to_string();
       rc = writer_->writen(cell_str.data(), cell_str.size());
       if (OB_FAIL(rc)) {

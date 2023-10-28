@@ -20,11 +20,11 @@ See the Mulan PSL v2 for more details. */
 #include "common/lang/comparator.h"
 #include "common/lang/string.h"
 
-const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "booleans", "dates"};
+const char *ATTR_TYPE_NAME[] = {"undefined", "chars", "ints", "floats", "booleans", "dates", "nulls"};
 
 const char *attr_type_to_string(AttrType type)
 {
-  if (type >= UNDEFINED && type <= DATES) {
+  if (type >= UNDEFINED && type <= NULLS) {
     return ATTR_TYPE_NAME[type];
   }
   return "unknown";
@@ -59,7 +59,8 @@ Value::Value(bool val)
 
 Value::Value(bool val, bool flag)
 {
-  set_null(val);
+  attr_type_ = NULLS;
+  length_ = 4;
 }
 
 Value::Value(const char *s, int len /*= 0*/)
@@ -89,6 +90,10 @@ void Value::set_data(char *data, int length)
       num_value_.bool_value_ = *(int *)data != 0;
       length_ = length;
     } break;
+    case NULLS: {
+      num_value_.int_value_ = *(int *)data;
+      length_ = length;
+    } break;
     default: {
       LOG_WARN("unknown data type: %d", attr_type_);
     } break;
@@ -113,9 +118,10 @@ void Value::set_boolean(bool val)
   num_value_.bool_value_ = val;
   length_ = sizeof(val);
 }
-void Value::set_null(bool val)
+void Value::set_null(int val)
 {
-  null_flag_ = val;
+  attr_type_ = NULLS;
+  num_value_.int_value_ = val;
   length_ = 4;
 }
 void Value::set_string(const char *s, int len /*= 0*/)
@@ -155,6 +161,9 @@ void Value::set_value(const Value &value)
     case DATES: {
       set_date(value.get_int());
     } break;
+    case NULLS: {
+      set_null(value.get_null());
+    }
     case UNDEFINED: {
       ASSERT(false, "got an invalid value type");
     } break;
@@ -191,6 +200,9 @@ std::string Value::to_string() const
     } break;
     case DATES: {
       os << date_to_string(num_value_.int_value_);
+    } break;
+    case NULLS: {
+      os << "NULL";
     } break;
     default: {
       LOG_WARN("unsupported attr type: %d", attr_type_);
@@ -239,6 +251,10 @@ int Value::compare(const Value &other) const
     return common::compare_float_with_string((void *)&this->num_value_.float_value_, (void *)other.str_value_.c_str());
   } else if (this->attr_type_ == CHARS && other.attr_type_ == FLOATS) {
     return -common::compare_float_with_string((void *)&other.num_value_.float_value_, (void *)this->str_value_.c_str());
+  } else if (this->attr_type_ == NULLS) {
+    return -1;
+  } else if (other.attr_type_ == NULLS){
+    return 1;
   }
   LOG_WARN("not supported");
   return -1;  // TODO return rc?
@@ -346,6 +362,6 @@ bool Value::get_boolean() const
   }
   return false;
 }
-bool Value::get_null() const {
-  return null_flag_;
+int Value::get_null() const {
+  return num_value_.int_value_;
 }

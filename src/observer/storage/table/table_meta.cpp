@@ -71,12 +71,17 @@ RC TableMeta::init(int32_t table_id, const char *name, int field_num, const Attr
 
     trx_field_num = static_cast<int>(trx_fields->size());
   } else {
-    fields_.resize(field_num);
+    fields_.resize(field_num + 1);
   }
+
+  // sys field null field
+  std::string null_field_name("null_field");
+  fields_[0].init(null_field_name.c_str(), AttrType::NULLS, field_offset, 4, false, true);
+  field_offset += 4;
 
   for (int i = 0; i < field_num; i++) {
     const AttrInfoSqlNode &attr_info = attributes[i];
-    rc = fields_[i + trx_field_num].init(attr_info.name.c_str(), 
+    rc = fields_[i + trx_field_num + 1].init(attr_info.name.c_str(), 
             attr_info.type, field_offset, attr_info.length, true/*visible*/, attr_info.nullable);
     if (rc != RC::SUCCESS) {
       LOG_ERROR("Failed to init field meta. table name=%s, field name: %s", name, attr_info.name.c_str());
@@ -150,9 +155,10 @@ int TableMeta::sys_field_num() const
 {
   const vector<FieldMeta> *trx_fields = TrxKit::instance()->trx_fields();
   if (nullptr == trx_fields) {
-    return 0;
+    // null field
+    return 1;
   }
-  return static_cast<int>(trx_fields->size());
+  return static_cast<int>(trx_fields->size()) + 1;
 }
 
 const IndexMeta *TableMeta::index(const char *name) const
@@ -165,11 +171,20 @@ const IndexMeta *TableMeta::index(const char *name) const
   return nullptr;
 }
 
-const IndexMeta *TableMeta::find_index_by_field(const char *field) const
+const IndexMeta *TableMeta::find_index_by_field(const std::vector<std::string> &fields) const
 {
   for (const IndexMeta &index : indexes_) {
-    if (0 == strcmp(index.field(), field)) {
-      return &index;
+    bool flag = true;
+    if (index.fields().size()==fields.size()){
+      for (int i = 0; i < fields.size();i++){
+        if (0 != strcmp(index.fields()[i].c_str(), fields[i].c_str())) {
+          flag = false;
+          break;
+        }
+      }
+      if (flag){
+        return &index;
+      }
     }
   }
   return nullptr;
@@ -268,7 +283,7 @@ int TableMeta::deserialize(std::istream &is)
     const Json::Value &field_value = fields_value[i];
     rc = FieldMeta::from_json(field_value, field);
     if (rc != RC::SUCCESS) {
-      LOG_ERROR("Failed to deserialize table meta. table name =%s", table_name.c_str());
+      LOG_ERROR("Failed to deserialize table meta(field meta). table name =%s", table_name.c_str());
       return -1;
     }
   }
@@ -295,7 +310,7 @@ int TableMeta::deserialize(std::istream &is)
       const Json::Value &index_value = indexes_value[i];
       rc = IndexMeta::from_json(*this, index_value, index);
       if (rc != RC::SUCCESS) {
-        LOG_ERROR("Failed to deserialize table meta. table name=%s", table_name.c_str());
+        LOG_ERROR("Failed to deserialize table meta(index meta). table name=%s", table_name.c_str());
         return -1;
       }
     }

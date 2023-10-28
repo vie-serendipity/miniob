@@ -75,7 +75,11 @@ RC ProjectPhysicalOperator::next()
           if (tuple_.cell_type(i) == AttrType::UNDEFINED) {
             tuple_.initialize(i, value.attr_type());
           }
-          tuple_.add(i, one);
+          if (value.attr_type() == AttrType::NULLS) {
+            continue;
+          } else {
+            tuple_.add(i, one);
+          }
         } else {
           rc = tuple->find_cell(TupleCellSpec(agg.relation_name.c_str(), agg.attribute_name.c_str()), value);
           if (rc != RC::SUCCESS) {

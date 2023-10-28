@@ -12,6 +12,7 @@ See the Mulan PSL v2 for more details. */
 // Created by Wangyunlai on 2022/07/05.
 //
 
+#include <regex>
 #include "sql/expr/expression.h"
 #include "sql/expr/tuple.h"
 
@@ -89,32 +90,83 @@ ComparisonExpr::~ComparisonExpr()
 RC ComparisonExpr::compare_value(const Value &left, const Value &right, bool &result) const
 {
   RC rc = RC::SUCCESS;
+  // cmp_result > 0, left > right
   int cmp_result = left.compare(right);
   result = false;
   switch (comp_) {
     case EQUAL_TO: {
-      result = (0 == cmp_result);
+      if (left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS){
+        result = false;
+      } else{
+        result = (0 == cmp_result);
+      }
     } break;
     case LESS_EQUAL: {
-      result = (cmp_result <= 0);
+      if (left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS){
+        result = false;
+      } else{
+        result = (cmp_result <= 0);
+      }
     } break;
     case NOT_EQUAL: {
-      result = (cmp_result != 0);
+      if (left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS){
+        result = false;
+      } else{
+        result = (cmp_result != 0);
+      }
     } break;
     case LESS_THAN: {
-      result = (cmp_result < 0);
+      if (left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS){
+        result = false;
+      } else{
+        result = (cmp_result < 0);
+      }
     } break;
     case GREAT_EQUAL: {
-      result = (cmp_result >= 0);
+      if (left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS){
+        result = false;
+      } else{
+        result = (cmp_result >= 0);
+      }
     } break;
     case GREAT_THAN: {
-      result = (cmp_result > 0);
+      if (left.attr_type() == AttrType::NULLS || right.attr_type() == AttrType::NULLS){
+        result = false;
+      } else{
+        result = (cmp_result > 0);
+      }
     } break;
     case IS: {
-      result = (cmp_result == 0);
+      result = (left.attr_type() == AttrType::NULLS && right.attr_type() == AttrType::NULLS);
     } break;
     case ISNOT: {
-      result = (cmp_result != 0);
+      result = !(left.attr_type() == AttrType::NULLS && right.attr_type() == AttrType::NULLS);
+    } break;
+    case STR_LIKE: {
+      // 目前只能先假设输入都是合法的，题目中并未给出语法规则
+      auto reg_str = "^" + right.to_string() + "$";
+      std::size_t pos = 0;
+      while((pos = reg_str.find("%")) != std::string::npos) {
+          reg_str.replace(pos, 1, "[^']*");
+      }
+      while((pos = reg_str.find("_")) != std::string::npos) {
+          reg_str.replace(pos, 1, "[^']");
+      }
+      std::regex reg(reg_str);
+      result = std::regex_search(left.to_string(), reg);
+    } break;
+    case STR_NOT_LIKE: {
+      // 目前只能先假设输入都是合法的，题目中并未给出语法规则
+      auto reg_str = "^" + right.to_string() + "$";
+      std::size_t pos = 0;
+      while((pos = reg_str.find("%")) != std::string::npos) {
+          reg_str.replace(pos, 1, "[^']*");
+      }
+      while((pos = reg_str.find("_")) != std::string::npos) {
+          reg_str.replace(pos, 1, "[^']");
+      }
+      std::regex reg(reg_str);
+      result = !std::regex_search(left.to_string(), reg);
     } break;
     default: {
       LOG_WARN("unsupported comparison. %d", comp_);
@@ -135,10 +187,6 @@ RC ComparisonExpr::try_get_value(Value &cell) const
 
     bool value = false;
     RC rc = RC::SUCCESS;
-    if (left_cell.attr_type() == AttrType::NULLS || right_cell.attr_type() == AttrType::NULLS) {
-      cell.set_boolean(value);
-      return rc;
-    }
     rc = compare_value(left_cell, right_cell, value);
     if (rc != RC::SUCCESS) {
       LOG_WARN("failed to compare tuple cells. rc=%s", strrc(rc));
@@ -164,10 +212,6 @@ RC ComparisonExpr::get_value(const Tuple &tuple, Value &value) const
   rc = right_->get_value(tuple, right_value);
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to get value of right expression. rc=%s", strrc(rc));
-    return rc;
-  }
-  if (left_value.attr_type() == AttrType::NULLS || right_value.attr_type() == AttrType::NULLS) {
-    value.set_boolean(false);
     return rc;
   }
   bool bool_value = false;

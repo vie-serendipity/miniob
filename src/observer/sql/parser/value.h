@@ -71,7 +71,7 @@ public:
   void set_boolean(bool val);
   void set_string(const char *s, int len = 0);
   void set_date(int val);
-  void set_null(bool val);
+  void set_null(int val);
   void set_value(const Value &value);
 
   std::string to_string() const;
@@ -98,7 +98,7 @@ public:
   float get_float() const;
   std::string get_string() const;
   bool get_boolean() const;
-  bool get_null() const;
+  int get_null() const;
 
 private:
   AttrType attr_type_ = UNDEFINED;

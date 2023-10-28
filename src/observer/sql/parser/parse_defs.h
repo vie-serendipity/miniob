@@ -62,14 +62,16 @@ struct RelAttrSqlNode
  */
 enum CompOp
 {
-  EQUAL_TO,     ///< "="
-  LESS_EQUAL,   ///< "<="
-  NOT_EQUAL,    ///< "<>"
-  LESS_THAN,    ///< "<"
-  GREAT_EQUAL,  ///< ">="
-  GREAT_THAN,   ///< ">"
-  IS,           ///< "is"
-  ISNOT,        ///< "isnot"
+  EQUAL_TO,      ///< "="
+  LESS_EQUAL,    ///< "<="
+  NOT_EQUAL,     ///< "<>"
+  LESS_THAN,     ///< "<"
+  GREAT_EQUAL,   ///< ">="
+  GREAT_THAN,    ///< ">"
+  IS,            ///< "is"
+  ISNOT,         ///< "isnot"
+  STR_LIKE,      ///< "LIKE"
+  STR_NOT_LIKE,  ///< "NOT LIKE"
   NO_OP
 };
 
@@ -213,7 +215,7 @@ struct CreateIndexSqlNode
 {
   std::string index_name;      ///< Index name
   std::string relation_name;   ///< Relation name
-  std::string attribute_name;  ///< Attribute name
+  std::vector<std::string> attributes;  ///< Attribute name
 };
 
 /**

@@ -472,7 +472,11 @@ TEST(test_bplus_tree, test_chars)
   const char *index_name = "chars.btree";
   ::remove(index_name);
   handler = new BplusTreeHandler();
-  handler->create(index_name, CHARS, 8, ORDER, ORDER);
+  std::vector<AttrType> attr_types;
+  attr_types.emplace_back(CHARS);
+  std::vector<int> attr_lengths;
+  attr_lengths.emplace_back(8);
+  handler->create(index_name, attr_types, attr_lengths, ORDER, ORDER);
 
   char keys[][9] = {
     "abcdefg",
@@ -515,7 +519,11 @@ TEST(test_bplus_tree, test_scanner)
   const char *index_name = "scanner.btree";
   ::remove(index_name);
   handler = new BplusTreeHandler();
-  handler->create(index_name, INTS, sizeof(int), ORDER, ORDER);
+  std::vector<AttrType> attr_types;
+  attr_types.emplace_back(INTS);
+  std::vector<int> attr_lengths;
+  attr_lengths.emplace_back(sizeof(int));
+  handler->create(index_name, attr_types, attr_lengths, ORDER, ORDER);
 
   int count = 0;
   RC rc = RC::SUCCESS;
@@ -724,7 +732,11 @@ TEST(test_bplus_tree, test_bplus_tree_insert)
 
   ::remove(index_name);
   handler = new BplusTreeHandler();
-  handler->create(index_name, INTS, sizeof(int), ORDER, ORDER);
+  std::vector<AttrType> attr_types;
+  attr_types.emplace_back(INTS);
+  std::vector<int> attr_lengths;
+  attr_lengths.emplace_back(sizeof(int));
+  handler->create(index_name, attr_types, attr_lengths, ORDER, ORDER);
 
   test_insert();
 

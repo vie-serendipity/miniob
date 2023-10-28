@@ -109,6 +109,8 @@ public:
    * @param[out] cell 返回的cell
    */
   virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const = 0;
+  virtual RC index_at(int index, int &num) const = 0;
+  virtual RC null_cell(int index, Value &cell) const = 0;
 
   virtual std::string to_string() const
   {
@@ -173,11 +175,48 @@ public:
       return RC::INVALID_ARGUMENT;
     }
 
+    Value null_field;
+    null_field.set_type(AttrType::NULLS);
+    null_field.set_data(this->record_->data(), 4);
+    RC rc = RC::SUCCESS;
+    int num;
+    rc = index_at(index, num);
+    if ((null_field.get_null()&(1<<num))!=0){
+      cell.set_type(AttrType::NULLS);
+    } else{
+      FieldExpr *field_expr = speces_[index];
+      const FieldMeta *field_meta = field_expr->field().meta();
+      cell.set_type(field_meta->type());
+      cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
+    }
+    return RC::SUCCESS;
+  }
+
+  RC null_cell(int index, Value &cell) const override {
+    cell.set_type(AttrType::NULLS);
+    cell.set_data(this->record_->data(), 4);
+    return RC::SUCCESS;
+  }
+
+  RC index_at(int index, int &num) const override
+  {
+    if (index < 0 || index >= static_cast<int>(speces_.size())) {
+      LOG_WARN("invalid argument. index=%d", index);
+      return RC::INVALID_ARGUMENT;
+    }
     FieldExpr *field_expr = speces_[index];
     const FieldMeta *field_meta = field_expr->field().meta();
-    cell.set_type(field_meta->type());
-    cell.set_data(this->record_->data() + field_meta->offset(), field_meta->len());
-    return RC::SUCCESS;
+    const TableMeta table_meta = table_->table_meta();
+    const std::vector<FieldMeta> *field_metas = table_meta.field_metas();
+    int i = 0;
+    for (auto meta: *field_metas){
+      if (0 == strcmp(meta.name(), field_meta->name())){
+        num = i - 1;
+        return RC::SUCCESS;
+      }
+      i++;
+    }
+    return RC::NOTFOUND;
   }
 
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
@@ -272,11 +311,19 @@ public:
     return tuple_->find_cell(*spec, cell);
   }
 
+  RC null_cell(int index, Value &cell) const override {
+    return tuple_->null_cell(index, cell);
+  }
+
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
     return tuple_->find_cell(spec, cell);
   }
 
+  RC index_at(int index, int &num) const override
+  {
+    return tuple_->index_at(index, num);
+  }
 #if 0
   RC cell_spec_at(int index, const TupleCellSpec *&spec) const override
   {
@@ -319,6 +366,11 @@ public:
     return expr->try_get_value(cell);
   }
 
+  // TODO 表达式计算中涉及NULL
+  RC null_cell(int index, Value &cell) const override {
+    return RC::UNIMPLENMENT;
+  }
+
   RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
     for (const std::unique_ptr<Expression> &expr : expressions_) {
@@ -329,6 +381,9 @@ public:
     return RC::NOTFOUND;
   }
 
+  RC index_at(int index, int &num) const override {
+    return RC::UNIMPLENMENT;
+  }
 
 private:
   const std::vector<std::unique_ptr<Expression>> &expressions_;
@@ -342,6 +397,7 @@ public:
   {
     for (const Aggregation &agg : aggregations_) {
       cells_.push_back(Value());
+      null_flags_.push_back(Value(true));
     }
   }
 
@@ -368,15 +424,34 @@ public:
 
   void add(int index, Value &value) {
     Value &cell_ = cells_[index];
+    Value &null_flag_ = null_flags_[index];
     switch (aggregations_[index].agg_fun) {
       case AGG_MAX:
-        if (cell_.compare(value) < 0) {
+        if (value.attr_type()!=AttrType::NULLS) {
+          null_flag_.set_boolean(false);
+        }
+        if (null_flag_.get_boolean()){
           cell_ = value;
+        } else{
+          if (value.attr_type()!=AttrType::NULLS){
+            if (cell_.compare(value) < 0) {
+              cell_ = value;
+            }
+          }
         }
         break;
       case AGG_MIN:
-        if (cell_.compare(value) > 0) {
+        if (value.attr_type()!=AttrType::NULLS) {
+          null_flag_.set_boolean(false);
+        }
+        if (null_flag_.get_boolean()){
           cell_ = value;
+        } else{
+          if (value.attr_type()!=AttrType::NULLS){
+            if (cell_.compare(value) > 0) {
+              cell_ = value;
+            }
+          }
         }
         break;
       case AGG_COUNT:
@@ -438,6 +513,15 @@ public:
     return RC::SUCCESS;
   }
 
+  RC index_at(int index, int &num) const override{
+    return RC::UNIMPLENMENT;
+  }
+
+  //TODO 聚合函数涉及NULL
+  RC null_cell(int index, Value &cell) const override {
+    return RC::UNIMPLENMENT;
+  }
+
   AttrType cell_type(int index) const {
     return cells_[index].attr_type();
   }
@@ -472,6 +556,7 @@ private:
   std::vector<Aggregation> aggregations_{};
   std::vector<Value> cells_;
   Value counter_{};
+  std::vector<Value> null_flags_;
 };
 
 /**
@@ -507,6 +592,16 @@ public:
   virtual RC find_cell(const TupleCellSpec &spec, Value &cell) const override
   {
     return RC::INTERNAL;
+  }
+
+  virtual RC index_at(int index, int &num) const override
+  {
+    return RC::INTERNAL;
+  }
+
+  // TODO 不太明白，常量应该涉及不到NULL
+  virtual RC null_cell(int index, Value &cell) const override {
+    return RC::UNIMPLENMENT;
   }
 
 private:
@@ -560,6 +655,33 @@ public:
     }
 
     return right_->find_cell(spec, value);
+  }
+
+  RC index_at(int index, int &num) const override{
+    const int left_cell_num = left_->cell_num();
+    if (index > 0 && index < left_cell_num) {
+      return left_->index_at(index, num);
+    }
+
+    if (index >= left_cell_num && index < left_cell_num + right_->cell_num()) {
+      return right_->index_at(index - left_cell_num, num);
+    }
+
+    return RC::NOTFOUND;
+  }
+
+  //TODO join 涉及null，左右涉及到多个null
+  virtual RC null_cell(int index, Value &cell) const override {
+    const int left_cell_num = left_->cell_num();
+    if (index > 0 && index < left_cell_num) {
+      return left_->null_cell(index, cell);
+    }
+
+    if (index >= left_cell_num && index < left_cell_num + right_->cell_num()) {
+      return right_->null_cell(index - left_cell_num, cell);
+    }
+
+    return RC::NOTFOUND;
   }
 
 private:
