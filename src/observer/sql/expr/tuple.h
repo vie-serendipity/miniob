@@ -483,12 +483,9 @@ public:
         case AGG_MAX:
         case AGG_MIN:
         case AGG_COUNT:
-          if (null_flags_[i].get_boolean()){
-            cell_.set_null(0);
-          }
           break;
         case AGG_SUM:
-          if (counter_.get_int()==0){
+          if (null_flags_[i].get_boolean()){
             cell_.set_null(0);
           }
           break;
