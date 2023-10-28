@@ -13,14 +13,15 @@ See the Mulan PSL v2 for more details. */
 //
 
 #include "common/log/log.h"
+#include "sql/parser/date.h"
 #include "sql/stmt/update_stmt.h"
 #include "sql/stmt/filter_stmt.h"
 #include "storage/db/db.h"
 #include "storage/table/table.h"
 #include "sql/parser/date.h"
 
-UpdateStmt::UpdateStmt(Table *table, const Value *values, int value_amount, FilterStmt *filter_stmt)
-    : table_(table), values_(values), value_amount_(value_amount), filter_stmt_(filter_stmt)
+UpdateStmt::UpdateStmt(Table *table, FilterStmt *filter_stmt)
+    : table_(table), filter_stmt_(filter_stmt)
 {}
 
 UpdateStmt::~UpdateStmt()
@@ -48,53 +49,54 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   }
 
   std::vector<Field> update_fields;
-  // check the fields type and fields name
-  bool             flag          = false;
-  const Value     *update_values        = &update.value;
-  Value * values = const_cast<Value *>(update_values);
+  std::vector<Value> values;
   const TableMeta &table_meta    = table->table_meta();
   const int        sys_field_num = table_meta.sys_field_num();
-  const AttrType   value_type    = values[0].attr_type();
-  for (int i = 0; i < table_meta.field_num()-sys_field_num; i++) {
-    const FieldMeta *field_meta = table_meta.field(i + sys_field_num);
-    const std::string   field_name = field_meta->name();
-    const AttrType      attr_type  = field_meta->type();
-    if (field_name == update.attribute_name) {
-      flag = true;
-      if (values[0].attr_type()==AttrType::NULLS){
-        if (!field_meta->nullable()){
+  // check the fields type and fields name
+  for (int i = 0; i < update.set_list.size(); i++) {
+    bool             flag          = false;
+    values.push_back(update.set_list[i].value);
+    for (int j = 0; j < table_meta.field_num(); j++) {
+      const FieldMeta *field_meta = table_meta.field(j + sys_field_num);
+      const std::string   field_name = field_meta->name();
+      const AttrType      attr_type  = field_meta->type();
+      if (field_name == update.set_list[i].attribute_name) {
+        flag = true;
+        if (values[i].attr_type()==AttrType::NULLS){
+          if (!field_meta->nullable()){
+            return RC::SCHEMA_FIELD_TYPE_MISMATCH;
+          }
+          values[i].set_null(1 << i);
+        }
+        // DATE 类型的字面值是一个字符串，需要在这里对它进行解析和转换
+        if (attr_type == AttrType::DATES && values[i].attr_type() == AttrType::CHARS) {
+          int date = -1;
+          RC rc = string_to_date(values[i].data(), date);
+          if (rc != RC::SUCCESS) {
+            if (rc == RC::INVALID_ARGUMENT) {
+              LOG_WARN("Can not parse date. The format must be YYYY-MM-DD, and the date must be valid. table=%s, field=%s, value=%s",
+                table_name, field_meta->name(), values[i].data());
+            }
+            return rc;
+          }
+          values[i].set_date(date);
+        }
+        if (attr_type!=values[i].attr_type()){
+          LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
+          table_name, field_meta->name(), attr_type, values[i].attr_type());
           return RC::SCHEMA_FIELD_TYPE_MISMATCH;
         }
-        values[0].set_null(1 << i);
+        update_fields.push_back(Field(table, field_meta));
+        break;
       }
-      if (attr_type == AttrType::DATES && value_type == AttrType::CHARS) {
-        int date = -1;
-        RC rc = string_to_date(values[0].data(), date);
-        if (rc != RC::SUCCESS) {
-          if (rc == RC::INVALID_ARGUMENT) {
-            LOG_WARN("Can not parse date. The format must be YYYY-MM-DD, and the date must be valid. table=%s, field=%s, value=%s",
-              table_name, field_meta->name(), values[0].data());
-          }
-          return rc;
-        }
-        values[0].set_date(date);
-      }
-      if (values[0].attr_type()!=AttrType::NULLS && attr_type!=values[0].attr_type()){
-        LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
-        table_name, field_meta->name(), attr_type, value_type);
-        return RC::SCHEMA_FIELD_TYPE_MISMATCH;
-      }
-      update_fields.push_back(Field(table, field_meta));
-      break;
     }
-  }
-  if (flag == false) {
-    LOG_WARN("field name not found. table=%s, value name=%d", table_name, update.attribute_name);
-    return RC::INVALID_ARGUMENT;
+    if (flag == false) {
+      LOG_WARN("field name not found. table=%s, value name=%d", table_name, update.set_list[i].attribute_name.c_str());
+      return RC::INVALID_ARGUMENT;
+    }
   }
 
   // check the conditions
-
   std::unordered_map<std::string, Table *> table_map;
   table_map.insert(std::pair<std::string, Table *>(std::string(table_name), table));
 
@@ -104,7 +106,8 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   if (rc != RC::SUCCESS) {
     LOG_WARN("failed to create filter statement. rc=%d:%s", rc, strrc(rc));
   }
-  UpdateStmt *update_stmt = new UpdateStmt(table, values, 1, filter_stmt);
+  UpdateStmt *update_stmt = new UpdateStmt(table, filter_stmt);
+  update_stmt->values_.swap(values);
   update_stmt->update_fields_.swap(update_fields);
   stmt = update_stmt;
   return rc;

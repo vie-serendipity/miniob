@@ -30,7 +30,7 @@ class UpdateStmt : public Stmt
 {
 public:
   UpdateStmt() = default;
-  UpdateStmt(Table *table, const Value *values, int value_amount, FilterStmt *filter_stmt);
+  UpdateStmt(Table *table, FilterStmt *filter_stmt);
   ~UpdateStmt() override;
 
 public:
@@ -41,13 +41,9 @@ public:
   {
     return table_;
   }
-  const Value *values() const
+  const std::vector<Value> &values() const
   {
     return values_;
-  }
-  int value_amount() const
-  {
-    return value_amount_;
   }
   const std::vector<Field> &fields() const
   {
@@ -64,8 +60,7 @@ public:
 
 private:
   Table *table_ = nullptr;
-  const Value *values_ = nullptr;
+  std::vector<Value> values_;
   std::vector<Field> update_fields_;
-  int value_amount_ = 0;
   FilterStmt *filter_stmt_ = nullptr;
 };

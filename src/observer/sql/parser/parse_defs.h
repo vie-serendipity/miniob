@@ -159,14 +159,23 @@ struct DeleteSqlNode
 };
 
 /**
+ * @brief 描述update语句中的set操作
+ * @ingroup SQLParser
+ */
+struct SetValueSqlNode
+{
+  std::string                   attribute_name;        ///< 更新的字段
+  Value                         value;                 ///< 更新的值
+};
+
+/**
  * @brief 描述一个update语句
  * @ingroup SQLParser
  */
 struct UpdateSqlNode
 {
   std::string                   relation_name;         ///< Relation to update
-  std::string                   attribute_name;        ///< 更新的字段，仅支持一个字段
-  Value                         value;                 ///< 更新的值，仅支持一个字段
+  std::vector<SetValueSqlNode>  set_list;
   std::vector<ConditionSqlNode> conditions;
 };
 

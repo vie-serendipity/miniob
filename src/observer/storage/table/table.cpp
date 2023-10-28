@@ -14,9 +14,12 @@ See the Mulan PSL v2 for more details. */
 
 #include <limits.h>
 #include <string.h>
+#include <vector>
+#include <string>
 #include <algorithm>
 
 #include "common/defs.h"
+#include "sql/parser/value.h"
 #include "storage/table/table.h"
 #include "storage/table/table_meta.h"
 #include "common/log/log.h"
@@ -245,11 +248,10 @@ RC Table::insert_record(Record &record)
   return rc;
 }
 
-RC Table::update_record(Record &record, const char *field_name, Value &value)
+RC Table::update_record(Record &record, const std::vector<std::string> &fields, const std::vector<Value> &const_values)
 {
   RC rc = sync();//刷新所有脏页
   if(rc != RC::SUCCESS) return rc;
-
 
   int record_size = table_meta_.record_size();
   const int normal_field_start_index = table_meta_.sys_field_num();
@@ -259,45 +261,51 @@ RC Table::update_record(Record &record, const char *field_name, Value &value)
     LOG_ERROR("Failed to delete index data when update record. table name=%s, rc=%d:%s",
                 name(), rc, strrc(rc));
   }
-  if (value.attr_type()==AttrType::NULLS){
-    int null_field = *(int *)record_data;
-    value.set_null(null_field | value.get_null());
-    memcpy(record_data, value.data(), 4);
-    switch (table_meta_.field(field_name)->type())
-    {
-    case AttrType::INTS:{
-      value.set_int(0);
-    } break;
-    case AttrType::FLOATS: {
-      value.set_float(0);
-    } break;
-    case AttrType::CHARS: {
-      char *data = (char *)malloc(sizeof(char));
-      value.set_data(data, 1);
-    } break;
-    case AttrType::DATES: {
-      value.set_date(0);
-    } break;
-    case AttrType::UNDEFINED: {
-      ASSERT(false, "got an invalid value type");
-    } break;
-    }
-  }
-  for (int i = 0; i < table_meta_.field_num()-table_meta_.sys_field_num(); i++) {
-    const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
-    if (strcasecmp(field->name(), field_name) ==0) {
-      size_t copy_len = field->len();
-      memset(record_data + field->offset(), 0, copy_len);
-      if (field->type() == CHARS) {
-        const size_t data_len = value.length();
-        if (copy_len > data_len) {
-          copy_len = data_len + 1;
-        }
+  std::vector<Value> &values = const_cast<std::vector<Value> &>(const_values);
+  for (int j = 0; j < fields.size(); j++) {
+    if (values[j].attr_type()==AttrType::NULLS){
+      int null_field = *(int *)record_data;
+      values[j].set_null(null_field | values[j].get_null());
+      memcpy(record_data, values[j].data(), 4);
+      switch (table_meta_.field(fields[j].c_str())->type())
+      {
+      case AttrType::INTS:{
+        values[j].set_int(0);
+      } break;
+      case AttrType::FLOATS: {
+        values[j].set_float(0);
+      } break;
+      case AttrType::CHARS: {
+        char *data = (char *)malloc(sizeof(char));
+        values[j].set_data(data, 1);
+      } break;
+      case AttrType::DATES: {
+        values[j].set_date(0);
+      } break;
+      case AttrType::UNDEFINED: {
+        ASSERT(false, "got an invalid value type");
+      } break;
       }
-      memcpy(record_data + field->offset(), value.data(), copy_len);
-      break;
     }
   }
+  for (int j = 0; j < fields.size(); j++) {
+    for (int i = 0; i < table_meta_.field_num()-table_meta_.sys_field_num(); i++) {
+      const FieldMeta *field = table_meta_.field(i + normal_field_start_index);
+      if (strcasecmp(field->name(), fields[j].c_str()) ==0) {
+        size_t copy_len = field->len();
+        memset(record_data + field->offset(), 0, copy_len);
+        if (field->type() == CHARS) {
+          const size_t data_len = values[j].length();
+          if (copy_len > data_len) {
+            copy_len = data_len + 1;
+          }
+        }
+        memcpy(record_data + field->offset(), values[j].data(), copy_len);
+        break;
+      }
+    }
+  }
+
   rc = insert_entry_of_indexes(record_data, record.rid());
   return rc;
 }

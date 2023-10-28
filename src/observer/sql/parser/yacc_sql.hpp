@@ -131,6 +131,7 @@ union YYSTYPE
   enum CompOp                       comp;
   enum AggFun                       agg;
   RelAttrSqlNode *                  rel_attr;
+  SetValueSqlNode *                 set_value;
   std::vector<AttrInfoSqlNode> *    attr_infos;
   AttrInfoSqlNode *                 attr_info;
   Expression *                      expression;
@@ -140,11 +141,12 @@ union YYSTYPE
   std::vector<RelAttrSqlNode> *     rel_attr_list;
   std::vector<std::string> *        relation_list;
   std::vector<std::string> *        field_list;
+  std::vector<SetValueSqlNode> *    set_list;
   char *                            string;
   int                               number;
   float                             floats;
 
-#line 148 "yacc_sql.hpp"
+#line 150 "yacc_sql.hpp"
 
 };
 typedef union YYSTYPE YYSTYPE;
