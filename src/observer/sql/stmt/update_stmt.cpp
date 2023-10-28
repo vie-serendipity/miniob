@@ -56,7 +56,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
   for (int i = 0; i < update.set_list.size(); i++) {
     bool             flag          = false;
     values.push_back(update.set_list[i].value);
-    for (int j = 0; j < table_meta.field_num(); j++) {
+    for (int j = 0; j < table_meta.field_num() - sys_field_num; j++) {
       const FieldMeta *field_meta = table_meta.field(j + sys_field_num);
       const std::string   field_name = field_meta->name();
       const AttrType      attr_type  = field_meta->type();
