@@ -81,7 +81,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
           }
           values[i].set_date(date);
         }
-        if (attr_type!=values[i].attr_type()){
+        if (values[i].attr_type()!=AttrType::NULLS && attr_type!=values[i].attr_type()){
           LOG_WARN("field type mismatch. table=%s, field=%s, field type=%d, value_type=%d",
           table_name, field_meta->name(), attr_type, values[i].attr_type());
           return RC::SCHEMA_FIELD_TYPE_MISMATCH;
