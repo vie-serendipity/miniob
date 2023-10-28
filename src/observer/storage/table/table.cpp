@@ -261,7 +261,7 @@ RC Table::update_record(Record &record, const char *field_name, Value &value)
   }
   if (value.attr_type()==AttrType::NULLS){
     int null_field = *(int *)record_data;
-    value.set_null(null_field & value.get_null());
+    value.set_null(null_field | value.get_null());
     memcpy(record_data, value.data(), 4);
     switch (table_meta_.field(field_name)->type())
     {
