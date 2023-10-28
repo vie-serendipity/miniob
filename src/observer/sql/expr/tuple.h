@@ -417,6 +417,9 @@ public:
       case AttrType::DATES:
         // TODO
         break;
+      case AttrType::NULLS:
+        // TODO
+        break;
       default:
         break;
     }
@@ -464,6 +467,9 @@ public:
         }
         break;
       case AGG_SUM:
+        if (value.attr_type()!=AttrType::NULLS){
+          null_flag_.set_boolean(false);
+        }
         add_value(cell_, value);
         break;
       case NO_AGG: break;
@@ -477,7 +483,14 @@ public:
         case AGG_MAX:
         case AGG_MIN:
         case AGG_COUNT:
+          if (null_flags_[i].get_boolean()){
+            cell_.set_null(0);
+          }
+          break;
         case AGG_SUM:
+          if (counter_.get_int()==0){
+            cell_.set_null(0);
+          }
           break;
         case AGG_AVG:
           if (counter_.get_int()==0){
