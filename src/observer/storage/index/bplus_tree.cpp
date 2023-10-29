@@ -1680,8 +1680,14 @@ RC BplusTreeScanner::open(const char *left_user_key, int left_len, bool left_inc
 
   // 校验输入的键值是否是合法范围
   if (left_user_key && right_user_key) {
-    const KeyComparator &key_comparator = tree_handler_.key_comparator_;
-    const int result = key_comparator(left_user_key, right_user_key);
+    const std::vector<AttrComparator> &attr_comparators = tree_handler_.key_comparator_.attr_comparators();
+    int result = 0;
+    for(auto attr_comparator: attr_comparators){
+      result = attr_comparator(left_user_key, right_user_key);
+      if (result!=0){
+        break;
+      }
+    }
     if (result > 0 ||  // left < right
                        // left == right but is (left,right)/[left,right) or (left,right]
         (result == 0 && (left_inclusive == false || right_inclusive == false))) {

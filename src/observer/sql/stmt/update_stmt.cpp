@@ -66,7 +66,7 @@ RC UpdateStmt::create(Db *db, const UpdateSqlNode &update, Stmt *&stmt)
           if (!field_meta->nullable()){
             return RC::SCHEMA_FIELD_TYPE_MISMATCH;
           }
-          values[i].set_null(1 << i);
+          values[i].set_null(1 << j);
         }
         // DATE 类型的字面值是一个字符串，需要在这里对它进行解析和转换
         if (attr_type == AttrType::DATES && values[i].attr_type() == AttrType::CHARS) {
